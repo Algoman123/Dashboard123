@@ -1,0 +1,35 @@
+<svg viewBox="0 -6 380 80" xmlns="http://www.w3.org/2000/svg">
+  <!-- "Dashboard" bold text -->
+  <text x="0" y="55"
+        font-family="'Nunito Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="48" font-weight="700" letter-spacing="-1"
+        fill="currentColor">Dashboard</text>
+
+  <!-- "1" near baseline -->
+  <text x="278" y="62"
+        font-family="'Nunito Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="20" font-weight="400"
+        fill="currentColor">1</text>
+
+  <!-- Wavy ascending line 1→2: dip, tilde wave at bottom, sharp rise -->
+  <path d="M 289 58 C 293 68, 297 72, 300 68 C 302 65, 300 68, 304 60
+           C 310 44, 318 36, 322 34"
+        stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+  <!-- "2" mid-level -->
+  <text x="322" y="36"
+        font-family="'Nunito Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="20" font-weight="400"
+        fill="currentColor">2</text>
+
+  <!-- Wavy ascending line 2→3: same dip-wave-rise pattern -->
+  <path d="M 335 32 C 339 42, 343 46, 346 42 C 348 39, 346 42, 350 34
+           C 356 18, 364 10, 368 8"
+        stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+  <!-- "3" at top -->
+  <text x="366" y="12"
+        font-family="'Nunito Sans', system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif"
+        font-size="20" font-weight="400"
+        fill="currentColor">3</text>
+</svg>

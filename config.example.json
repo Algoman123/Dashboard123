@@ -1,0 +1,53 @@
+{
+  "strategies": [
+    {"name": "Built for Stability", "strategy_id": 1457941, "col2": "1M", "col3": "3M"},
+    {"name": "Small Cap Focus", "strategy_id": 1701030, "col2": "1M", "col3": "3M"}
+  ],
+  "screens": [
+    {"name": "Buffet", "screen_id": 30540, "max_holdings": 25, "col2": "1M", "col3": "3M"}
+  ],
+  "rankings": [
+    {"name": "Core Combination", "ranking_id": 408565, "universe": "Easy to Trade US", "max_holdings": 25, "col2": "1M", "col3": "3M", "news_feed": true},
+    {"name": "Classic Quality", "ranking_id": 295373, "universe": "Easy to Trade US", "max_holdings": 25, "col2": "1M", "col3": "3M", "news_feed": true}
+  ],
+  "custom_groups": [
+    {
+      "name": "Indices",
+      "tickers": ["SPY", "QQQ", "DIA", "IWM"],
+      "col2": "1M",
+      "col3": "3M"
+    },
+    {
+      "name": "Sectors",
+      "tickers": ["XLK", "XLF", "XLE", "XLV", "XLY", "XLP", "XLI", "XLU", "XLRE", "XLB", "XLC"],
+      "col2": "1M",
+      "col3": "3M"
+    },
+    {
+      "name": "CANSLIM Timing",
+      "tickers": ["XLF", "QQQ", "SMH", "GBTC", "XLK", "KRE", "IWM"],
+      "col2": "1M",
+      "col3": "SMA20"
+    }
+  ],
+  "sidebar_order": [
+    {"type": "strategy", "name": "Built for Stability"},
+    {"type": "strategy", "name": "Small Cap Focus"},
+    {"type": "screen", "name": "Buffet"},
+    {"type": "ranking", "name": "Core Combination"},
+    {"type": "ranking", "name": "Classic Quality"},
+    {"type": "custom", "name": "Indices"},
+    {"type": "custom", "name": "Sectors"},
+    {"type": "custom", "name": "CANSLIM Timing"}
+  ],
+  "trader_accounts": [],
+  "settings": {
+    "default_ticker": "SPY",
+    "theme": "dark",
+    "refresh_interval_minutes": 0,
+    "sparkline_period": "5d",
+    "overview_tickers": ["^GSPC", "^NDX", "^RUT", "^N100", "^N225", "^VIX", "GC=F"],
+    "movers_count": 5,
+    "forum_post_count": 4
+  }
+}

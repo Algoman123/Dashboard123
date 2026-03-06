@@ -1,0 +1,28 @@
+# Environment & secrets
+.env
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# User data (generated at runtime, contains personal config & API data)
+config.json
+ranking_data.json
+trader_data.json
+trader_notes.json
+strategy_holdings.json
+screen_holdings.json
+
+# IDE / tooling
+.claude/
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Virtual environment
+venv/
+.venv/
