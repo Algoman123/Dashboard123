@@ -27,7 +27,7 @@ A real-time portfolio monitoring dashboard for [Portfolio123](https://www.portfo
 - **Python 3.10** or later
 - **Portfolio123 API subscription** (for strategy/screen/ranking data and the Trader panel)
   - The dashboard works without a P123 API key, but P123-specific features will be unavailable
-  - API keys are available at [portfolio123.com/app/account](https://www.portfolio123.com/app/account)
+  - API keys are available at [https://www.portfolio123.com/sv/account-settings/dataminer-api](https://www.portfolio123.com/sv/account-settings/dataminer-api)
 
 ## Installation
 
@@ -43,7 +43,7 @@ A real-time portfolio monitoring dashboard for [Portfolio123](https://www.portfo
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/Dashboard123.git
+git clone https://github.com/Algoman123/Dashboard123.git
 cd Dashboard123
 
 # Create virtual environment

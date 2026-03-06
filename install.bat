@@ -69,7 +69,7 @@ if not exist ".env" (
         echo   P123_API_KEY=your_actual_api_key
         echo.
         echo You can find your API keys at:
-        echo   https://www.portfolio123.com/app/account
+        echo   https://www.portfolio123.com/sv/account-settings/dataminer-api
         echo.
     )
 ) else (
