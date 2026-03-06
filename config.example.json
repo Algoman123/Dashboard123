@@ -15,36 +15,39 @@
       "name": "Indices",
       "tickers": ["SPY", "QQQ", "DIA", "IWM"],
       "col2": "1M",
-      "col3": "3M"
+      "col3": "3M",
+      "news_feed": false
     },
     {
       "name": "Sectors",
       "tickers": ["XLK", "XLF", "XLE", "XLV", "XLY", "XLP", "XLI", "XLU", "XLRE", "XLB", "XLC"],
       "col2": "1M",
-      "col3": "3M"
+      "col3": "3M",
+      "news_feed": false
     },
     {
       "name": "CANSLIM Timing",
       "tickers": ["XLF", "QQQ", "SMH", "GBTC", "XLK", "KRE", "IWM"],
       "col2": "1M",
-      "col3": "SMA20"
+      "col3": "SMA20",
+      "news_feed": false
     }
   ],
   "sidebar_order": [
-    {"type": "strategy", "name": "Built for Stability"},
-    {"type": "strategy", "name": "Small Cap Focus"},
-    {"type": "screen", "name": "Buffet"},
-    {"type": "ranking", "name": "Core Combination"},
-    {"type": "ranking", "name": "Classic Quality"},
     {"type": "custom", "name": "Indices"},
     {"type": "custom", "name": "Sectors"},
-    {"type": "custom", "name": "CANSLIM Timing"}
+    {"type": "custom", "name": "CANSLIM Timing"},
+    {"type": "screen", "name": "Buffet"},
+    {"type": "strategy", "name": "Built for Stability"},
+    {"type": "strategy", "name": "Small Cap Focus"},
+    {"type": "ranking", "name": "Core Combination"},
+    {"type": "ranking", "name": "Classic Quality"}
   ],
   "trader_accounts": [],
   "settings": {
     "default_ticker": "SPY",
     "theme": "dark",
-    "refresh_interval_minutes": 0,
+    "refresh_interval_minutes": 15,
     "sparkline_period": "5d",
     "overview_tickers": ["^GSPC", "^NDX", "^RUT", "^N100", "^N225", "^VIX", "GC=F"],
     "movers_count": 5,

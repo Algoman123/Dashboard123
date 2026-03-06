@@ -827,7 +827,7 @@ def render_settings_dialog():
         st.markdown("**Add New Account**")
         new_acct_name = st.text_input(
             "Account Name", key="new_tacct_name",
-            placeholder="e.g. QP Fundamenta",
+            placeholder="e.g. My Quant Portfolio",
         )
         if st.button("Add Account", type="primary", disabled=not new_acct_name):
             config = add_trader_account(config, new_acct_name)
