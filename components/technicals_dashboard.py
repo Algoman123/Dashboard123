@@ -11,7 +11,7 @@ from services.technicals_data import (
     AC_LAGS,
     STAGE_LABELS,
     STAGE_COLORS,
-    _fetch_rrg_weekly_prices,
+    clear_rrg_cache,
     fetch_rrg_data,
     fetch_rrg_backtest_data,
     fetch_correlation_matrix,
@@ -43,7 +43,7 @@ def render_technicals_dashboard(colors: dict, theme: str):
         )
     with hdr_right:
         if st.button("🔄", key="refresh_technicals", help="Refresh technicals data"):
-            _fetch_rrg_weekly_prices.clear()
+            clear_rrg_cache()
             fetch_rrg_backtest_data.clear()
             fetch_correlation_matrix.clear()
             st.rerun()
@@ -333,7 +333,7 @@ def _render_corr_backtest(returns: pd.DataFrame, colors: dict, theme: str):
         x="Date:T", y="BuyHold:Q",
         tooltip=[alt.Tooltip("BuyHold:Q", format="$,.0f"), "Date:T"],
     )
-    st.altair_chart(_style_chart(bh_line + eq_line, colors, 280), use_container_width=True)
+    st.altair_chart(_style_chart(bh_line + eq_line, colors, 280), width="stretch")
 
     # Drawdown
     dd = (eq_s - eq_s.cummax()) / eq_s.cummax() * 100
@@ -345,7 +345,7 @@ def _render_corr_backtest(returns: pd.DataFrame, colors: dict, theme: str):
         x=alt.X("Date:T", title=None, axis=alt.Axis(format="%Y")), y="Strategy:Q")
     bh_dd_line = alt.Chart(bh_dd_df).mark_line(strokeWidth=1, opacity=0.4, color=colors["text_muted"]).encode(
         x="Date:T", y="BH:Q")
-    st.altair_chart(_style_chart(bh_dd_line + dd_area, colors, 150), use_container_width=True)
+    st.altair_chart(_style_chart(bh_dd_line + dd_area, colors, 150), width="stretch")
 
     st.caption(f"Blue = strategy, Grey = buy & hold {primary_asset}. Backtests ignore costs/slippage.")
 
@@ -627,7 +627,7 @@ When AC turns negative, switch to mean-reversion overlays or reduce position siz
         titleColor=colors["text_muted"],
     )
 
-    st.altair_chart(styled, use_container_width=True)
+    st.altair_chart(styled, width="stretch")
 
     st.caption(
         f"Weekly sampled over the last year (~52 weeks). Red = trending (positive AC), "
@@ -743,7 +743,7 @@ When AC turns negative, switch to mean-reversion overlays or reduce position siz
             titleColor=colors["text_muted"],
         )
 
-        st.altair_chart(styled_ts, use_container_width=True)
+        st.altair_chart(styled_ts, width="stretch")
 
         st.caption(
             f"{selected_asset} — autocorrelation at 3 lags over the last 2 years. "
@@ -852,199 +852,213 @@ def _render_rrg_tab(colors: dict, theme: str):
             unsafe_allow_html=True,
         )
 
-    trail_weeks = st.slider("Trail length (weeks)", 1, 8, 4, 1, key="rrg_trail",
-                            help="Number of weeks to show rotation trail")
-
+    # Pre-load data once before the fragment so the spinner shows on first load
     with st.spinner("Downloading sector data — this may take a moment on first load..."):
+        _init_data = fetch_rrg_data(4)
+
+    @st.fragment
+    def _rrg_chart_fragment():
+        trail_weeks = st.slider("Trail length (weeks)", 1, 8, 4, 1, key="rrg_trail",
+                                help="Number of weeks to show rotation trail")
+
         data = fetch_rrg_data(trail_weeks)
 
-    if not data:
-        st.warning("Unable to compute sector rotation data. This usually means the data download timed out. "
-                   "Click the 🔄 button above to retry.")
-        return
+        if not data:
+            st.warning("Unable to compute sector rotation data. This usually means the data download timed out. "
+                       "Click the 🔄 button above to retry.")
+            return
 
-    current = data["current"]
-    trails = data["trails"]
+        current = data["current"]
+        trails = data["trails"]
 
-    # RRG scatter plot with quadrant shading
-    # Quadrant backgrounds
-    x_min = min(current["RS_Ratio"].min(), 97)
-    x_max = max(current["RS_Ratio"].max(), 103)
-    y_min = min(current["RS_Momentum"].min(), 97)
-    y_max = max(current["RS_Momentum"].max(), 103)
+        # RRG scatter plot with quadrant shading
+        # Collect ALL coordinates (current positions + trail history) for domain
+        all_x = list(current["RS_Ratio"])
+        all_y = list(current["RS_Momentum"])
+        for pts in trails.values():
+            for pt in pts:
+                all_x.append(pt["RS_Ratio"])
+                all_y.append(pt["RS_Momentum"])
 
-    # Add some padding
-    x_pad = (x_max - x_min) * 0.1
-    y_pad = (y_max - y_min) * 0.1
-    x_min -= x_pad
-    x_max += x_pad
-    y_min -= y_pad
-    y_max += y_pad
+        x_min = min(min(all_x), 97)
+        x_max = max(max(all_x), 103)
+        y_min = min(min(all_y), 97)
+        y_max = max(max(all_y), 103)
 
-    quadrants = pd.DataFrame([
-        {"x": x_min, "x2": 100, "y": 100, "y2": y_max, "Quadrant": "Improving", "color": "#3D85C620"},
-        {"x": 100, "x2": x_max, "y": 100, "y2": y_max, "Quadrant": "Leading", "color": "#4CAF5020"},
-        {"x": 100, "x2": x_max, "y": y_min, "y2": 100, "Quadrant": "Weakening", "color": "#E8A83820"},
-        {"x": x_min, "x2": 100, "y": y_min, "y2": 100, "Quadrant": "Lagging", "color": "#E0666620"},
-    ])
+        x_pad = (x_max - x_min) * 0.1
+        y_pad = (y_max - y_min) * 0.1
+        x_min -= x_pad
+        x_max += x_pad
+        y_min -= y_pad
+        y_max += y_pad
 
-    quad_rects = (
-        alt.Chart(quadrants)
-        .mark_rect()
-        .encode(
-            x=alt.X("x:Q", scale=alt.Scale(domain=[x_min, x_max])),
-            x2="x2:Q",
-            y=alt.Y("y:Q", scale=alt.Scale(domain=[y_min, y_max])),
-            y2="y2:Q",
-            color=alt.Color("color:N", scale=None),
-            opacity=alt.value(0.15),
-        )
-    )
+        quadrants = pd.DataFrame([
+            {"x": x_min, "x2": 100, "y": 100, "y2": y_max, "Quadrant": "Improving", "color": "#3D85C620"},
+            {"x": 100, "x2": x_max, "y": 100, "y2": y_max, "Quadrant": "Leading", "color": "#4CAF5020"},
+            {"x": 100, "x2": x_max, "y": y_min, "y2": 100, "Quadrant": "Weakening", "color": "#E8A83820"},
+            {"x": x_min, "x2": 100, "y": y_min, "y2": 100, "Quadrant": "Lagging", "color": "#E0666620"},
+        ])
 
-    # Quadrant labels
-    ql_data = pd.DataFrame([
-        {"x": (x_min + 100) / 2, "y": (100 + y_max) / 2, "label": "IMPROVING"},
-        {"x": (100 + x_max) / 2, "y": (100 + y_max) / 2, "label": "LEADING"},
-        {"x": (100 + x_max) / 2, "y": (y_min + 100) / 2, "label": "WEAKENING"},
-        {"x": (x_min + 100) / 2, "y": (y_min + 100) / 2, "label": "LAGGING"},
-    ])
-    quad_labels = (
-        alt.Chart(ql_data)
-        .mark_text(fontSize=10, opacity=0.25, fontWeight=600)
-        .encode(
-            x="x:Q", y="y:Q",
-            text="label:N",
-            color=alt.value(colors["text_muted"]),
-        )
-    )
-
-    # Center crosshair at (100, 100)
-    h_line = (
-        alt.Chart(pd.DataFrame({"y": [100]}))
-        .mark_rule(strokeDash=[4, 4], strokeWidth=1, color=colors["text_muted"], opacity=0.5)
-        .encode(y="y:Q")
-    )
-    v_line = (
-        alt.Chart(pd.DataFrame({"x": [100]}))
-        .mark_rule(strokeDash=[4, 4], strokeWidth=1, color=colors["text_muted"], opacity=0.5)
-        .encode(x="x:Q")
-    )
-
-    # Current positions — colored by quadrant
-    quad_colors = {"Leading": "#4CAF50", "Weakening": "#E8A838", "Lagging": "#E06666", "Improving": "#3D85C6"}
-
-    points = (
-        alt.Chart(current)
-        .mark_circle(size=120)
-        .encode(
-            x=alt.X("RS_Ratio:Q", title="RS-Ratio (vs 52-week avg)",
-                     scale=alt.Scale(domain=[x_min, x_max])),
-            y=alt.Y("RS_Momentum:Q", title="RS-Momentum",
-                     scale=alt.Scale(domain=[y_min, y_max])),
-            color=alt.Color("Quadrant:N",
-                            scale=alt.Scale(
-                                domain=list(quad_colors.keys()),
-                                range=list(quad_colors.values()),
-                            ),
-                            legend=alt.Legend(orient="top", title=None)),
-            tooltip=["Name:N", "Ticker:N",
-                     alt.Tooltip("RS_Ratio:Q", format=".1f"),
-                     alt.Tooltip("RS_Momentum:Q", format=".1f"),
-                     alt.Tooltip("Ret_1M:Q", format="+.1f", title="1M Ret"),
-                     alt.Tooltip("Ret_3M:Q", format="+.1f", title="3M Ret")],
-        )
-    )
-
-    # Labels on points
-    labels = (
-        alt.Chart(current)
-        .mark_text(dy=-12, fontSize=10, fontWeight=600)
-        .encode(
-            x="RS_Ratio:Q",
-            y="RS_Momentum:Q",
-            text="Ticker:N",
-            color=alt.value(colors["text"]),
-        )
-    )
-
-    # Trail lines
-    trail_layers = []
-    for ticker, pts in trails.items():
-        if len(pts) < 2:
-            continue
-        trail_df = pd.DataFrame(pts)
-        trail_df["order"] = range(len(trail_df))
-        quad = current[current["Ticker"] == ticker]["Quadrant"].iloc[0] if ticker in current["Ticker"].values else "Lagging"
-        trail_color = quad_colors.get(quad, colors["text_muted"])
-
-        trail_line = (
-            alt.Chart(trail_df)
-            .mark_line(strokeWidth=1.5, opacity=0.4, color=trail_color)
+        quad_rects = (
+            alt.Chart(quadrants)
+            .mark_rect()
             .encode(
-                x=alt.X("RS_Ratio:Q", scale=alt.Scale(domain=[x_min, x_max])),
-                y=alt.Y("RS_Momentum:Q", scale=alt.Scale(domain=[y_min, y_max])),
-                order="order:Q",
+                x=alt.X("x:Q", scale=alt.Scale(domain=[x_min, x_max])),
+                x2="x2:Q",
+                y=alt.Y("y:Q", scale=alt.Scale(domain=[y_min, y_max])),
+                y2="y2:Q",
+                color=alt.Color("color:N", scale=None),
+                opacity=alt.value(0.15),
             )
         )
-        trail_layers.append(trail_line)
 
-    chart = quad_rects + quad_labels + h_line + v_line
-    for tl in trail_layers:
-        chart = chart + tl
-    chart = chart + points + labels
+        ql_data = pd.DataFrame([
+            {"x": (x_min + 100) / 2, "y": (100 + y_max) / 2, "label": "IMPROVING"},
+            {"x": (100 + x_max) / 2, "y": (100 + y_max) / 2, "label": "LEADING"},
+            {"x": (100 + x_max) / 2, "y": (y_min + 100) / 2, "label": "WEAKENING"},
+            {"x": (x_min + 100) / 2, "y": (y_min + 100) / 2, "label": "LAGGING"},
+        ])
+        quad_labels = (
+            alt.Chart(ql_data)
+            .mark_text(fontSize=10, opacity=0.25, fontWeight=600)
+            .encode(x="x:Q", y="y:Q", text="label:N", color=alt.value(colors["text_muted"]))
+        )
 
-    st.altair_chart(_style_chart(chart, colors, 450), use_container_width=True)
+        h_line = (
+            alt.Chart(pd.DataFrame({"y": [100]}))
+            .mark_rule(strokeDash=[4, 4], strokeWidth=1, color=colors["text_muted"], opacity=0.5)
+            .encode(y="y:Q")
+        )
+        v_line = (
+            alt.Chart(pd.DataFrame({"x": [100]}))
+            .mark_rule(strokeDash=[4, 4], strokeWidth=1, color=colors["text_muted"], opacity=0.5)
+            .encode(x="x:Q")
+        )
 
-    st.caption(
-        "Based on JdK RS-Ratio methodology by Julius de Kempenaer. "
-        "Data: weekly closes from Yahoo Finance."
-    )
+        quad_colors = {"Leading": "#4CAF50", "Weakening": "#E8A838", "Lagging": "#E06666", "Improving": "#3D85C6"}
 
-    # Sector table
-    st.markdown(
-        f'<div style="font-size:15px; font-weight:600; color:{colors["text_header"]}; margin:12px 0 4px 0;">'
-        f'Sector Summary</div>',
-        unsafe_allow_html=True,
-    )
+        points = (
+            alt.Chart(current)
+            .mark_circle(size=120)
+            .encode(
+                x=alt.X("RS_Ratio:Q", title="RS-Ratio (vs 52-week avg)",
+                         scale=alt.Scale(domain=[x_min, x_max])),
+                y=alt.Y("RS_Momentum:Q", title="RS-Momentum",
+                         scale=alt.Scale(domain=[y_min, y_max])),
+                color=alt.Color("Quadrant:N",
+                                scale=alt.Scale(
+                                    domain=list(quad_colors.keys()),
+                                    range=list(quad_colors.values()),
+                                ),
+                                legend=alt.Legend(orient="top", title=None)),
+                tooltip=["Name:N", "Ticker:N",
+                         alt.Tooltip("RS_Ratio:Q", format=".1f"),
+                         alt.Tooltip("RS_Momentum:Q", format=".1f"),
+                         alt.Tooltip("Ret_1M:Q", format="+.1f", title="1M Ret"),
+                         alt.Tooltip("Ret_3M:Q", format="+.1f", title="3M Ret")],
+            )
+        )
 
-    rows_html = ""
-    for _, row in current.sort_values("RS_Ratio", ascending=False).iterrows():
-        qc = quad_colors.get(row["Quadrant"], colors["text_muted"])
-        ret1_c = colors["green"] if row["Ret_1M"] > 0 else colors["red"]
-        ret3_c = colors["green"] if row["Ret_3M"] > 0 else colors["red"]
-        rows_html += f"""
-        <tr style="border-bottom:1px solid {colors['border']}33;">
-            <td style="padding:6px 8px; font-weight:600; color:{colors['text']};">{row['Ticker']}</td>
-            <td style="padding:6px 8px; color:{colors['text_muted']};">{row['Name']}</td>
-            <td style="padding:6px 8px; text-align:right;">{row['RS_Ratio']:.1f}</td>
-            <td style="padding:6px 8px; text-align:right;">{row['RS_Momentum']:.1f}</td>
-            <td style="padding:6px 8px; text-align:center;">
-                <span style="padding:2px 8px; border-radius:8px; font-size:11px; font-weight:600;
-                      background:{qc}20; color:{qc};">{row['Quadrant']}</span>
-            </td>
-            <td style="padding:6px 8px; text-align:right; color:{ret1_c};">{row['Ret_1M']:+.1f}%</td>
-            <td style="padding:6px 8px; text-align:right; color:{ret3_c};">{row['Ret_3M']:+.1f}%</td>
-        </tr>"""
+        labels = (
+            alt.Chart(current)
+            .mark_text(dy=-12, fontSize=10, fontWeight=600)
+            .encode(x="RS_Ratio:Q", y="RS_Momentum:Q", text="Ticker:N",
+                    color=alt.value(colors["text"]))
+        )
 
-    st.markdown(
-        f"""
-        <table style="width:100%; border-collapse:collapse; font-size:13px;">
-            <thead>
-                <tr style="border-bottom:2px solid {colors['border']};">
-                    <th style="padding:8px; text-align:left; color:{colors['text_muted']}; font-size:11px;">Ticker</th>
-                    <th style="padding:8px; text-align:left; color:{colors['text_muted']}; font-size:11px;">Sector</th>
-                    <th style="padding:8px; text-align:right; color:{colors['text_muted']}; font-size:11px;">RS-Ratio</th>
-                    <th style="padding:8px; text-align:right; color:{colors['text_muted']}; font-size:11px;">RS-Mom</th>
-                    <th style="padding:8px; text-align:center; color:{colors['text_muted']}; font-size:11px;">Quadrant</th>
-                    <th style="padding:8px; text-align:right; color:{colors['text_muted']}; font-size:11px;">1M</th>
-                    <th style="padding:8px; text-align:right; color:{colors['text_muted']}; font-size:11px;">3M</th>
-                </tr>
-            </thead>
-            <tbody>{rows_html}</tbody>
-        </table>
-        """,
-        unsafe_allow_html=True,
-    )
+        # Build single combined trail DataFrame (one layer instead of 11)
+        all_trail_rows = []
+        for ticker, pts in trails.items():
+            if len(pts) < 2:
+                continue
+            quad = current[current["Ticker"] == ticker]["Quadrant"].iloc[0] if ticker in current["Ticker"].values else "Lagging"
+            for i, pt in enumerate(pts):
+                all_trail_rows.append({
+                    "RS_Ratio": pt["RS_Ratio"],
+                    "RS_Momentum": pt["RS_Momentum"],
+                    "Ticker": ticker,
+                    "Quadrant": quad,
+                    "order": i,
+                })
+
+        chart = quad_rects + quad_labels + h_line + v_line
+
+        if all_trail_rows:
+            trail_combined = pd.DataFrame(all_trail_rows)
+            trail_layer = (
+                alt.Chart(trail_combined)
+                .mark_line(strokeWidth=1.5, opacity=0.4)
+                .encode(
+                    x=alt.X("RS_Ratio:Q", scale=alt.Scale(domain=[x_min, x_max])),
+                    y=alt.Y("RS_Momentum:Q", scale=alt.Scale(domain=[y_min, y_max])),
+                    detail="Ticker:N",
+                    color=alt.Color("Quadrant:N",
+                                    scale=alt.Scale(
+                                        domain=list(quad_colors.keys()),
+                                        range=list(quad_colors.values()),
+                                    ),
+                                    legend=None),
+                    order="order:Q",
+                )
+            )
+            chart = chart + trail_layer
+
+        chart = chart + points + labels
+
+        st.altair_chart(_style_chart(chart, colors, 450), width="stretch")
+
+        st.caption(
+            "Based on JdK RS-Ratio methodology by Julius de Kempenaer. "
+            "Data: weekly closes from Yahoo Finance."
+        )
+
+        # Sector table
+        st.markdown(
+            f'<div style="font-size:15px; font-weight:600; color:{colors["text_header"]}; margin:12px 0 4px 0;">'
+            f'Sector Summary</div>',
+            unsafe_allow_html=True,
+        )
+
+        rows_html = ""
+        for _, row in current.sort_values("RS_Ratio", ascending=False).iterrows():
+            qc = quad_colors.get(row["Quadrant"], colors["text_muted"])
+            ret1_c = colors["green"] if row["Ret_1M"] > 0 else colors["red"]
+            ret3_c = colors["green"] if row["Ret_3M"] > 0 else colors["red"]
+            rows_html += f"""
+            <tr style="border-bottom:1px solid {colors['border']}33;">
+                <td style="padding:6px 8px; font-weight:600; color:{colors['text']};">{row['Ticker']}</td>
+                <td style="padding:6px 8px; color:{colors['text_muted']};">{row['Name']}</td>
+                <td style="padding:6px 8px; text-align:right;">{row['RS_Ratio']:.1f}</td>
+                <td style="padding:6px 8px; text-align:right;">{row['RS_Momentum']:.1f}</td>
+                <td style="padding:6px 8px; text-align:center;">
+                    <span style="padding:2px 8px; border-radius:8px; font-size:11px; font-weight:600;
+                          background:{qc}20; color:{qc};">{row['Quadrant']}</span>
+                </td>
+                <td style="padding:6px 8px; text-align:right; color:{ret1_c};">{row['Ret_1M']:+.1f}%</td>
+                <td style="padding:6px 8px; text-align:right; color:{ret3_c};">{row['Ret_3M']:+.1f}%</td>
+            </tr>"""
+
+        st.markdown(
+            f"""
+            <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                <thead>
+                    <tr style="border-bottom:2px solid {colors['border']};">
+                        <th style="padding:8px; text-align:left; color:{colors['text_muted']}; font-size:11px;">Ticker</th>
+                        <th style="padding:8px; text-align:left; color:{colors['text_muted']}; font-size:11px;">Sector</th>
+                        <th style="padding:8px; text-align:right; color:{colors['text_muted']}; font-size:11px;">RS-Ratio</th>
+                        <th style="padding:8px; text-align:right; color:{colors['text_muted']}; font-size:11px;">RS-Mom</th>
+                        <th style="padding:8px; text-align:center; color:{colors['text_muted']}; font-size:11px;">Quadrant</th>
+                        <th style="padding:8px; text-align:right; color:{colors['text_muted']}; font-size:11px;">1M</th>
+                        <th style="padding:8px; text-align:right; color:{colors['text_muted']}; font-size:11px;">3M</th>
+                    </tr>
+                </thead>
+                <tbody>{rows_html}</tbody>
+            </table>
+            """,
+            unsafe_allow_html=True,
+        )
+
+    _rrg_chart_fragment()
 
     # RRG Backtester
     _render_rrg_backtest(colors, theme)
@@ -1330,7 +1344,7 @@ def _render_rrg_backtest(colors: dict, theme: str):
         x="Date:T", y="Benchmark:Q",
         tooltip=[alt.Tooltip("Benchmark:Q", format="$,.0f"), "Date:T"],
     )
-    st.altair_chart(_style_chart(bm_line + eq_line, colors, 280), use_container_width=True)
+    st.altair_chart(_style_chart(bm_line + eq_line, colors, 280), width="stretch")
 
     # Drawdown
     dd_vals = (eq_series - eq_series.cummax()) / eq_series.cummax() * 100
@@ -1347,7 +1361,7 @@ def _render_rrg_backtest(colors: dict, theme: str):
         strokeWidth=1, opacity=0.4, color=colors["text_muted"]).encode(
         x="Date:T", y="BuyHold:Q")
 
-    st.altair_chart(_style_chart(bm_dd_line + dd_area, colors, 150), use_container_width=True)
+    st.altair_chart(_style_chart(bm_dd_line + dd_area, colors, 150), width="stretch")
 
     st.caption(
         f"Blue = strategy, Grey = {benchmark}. Weekly rebalancing. Starting capital $10,000. "
@@ -1432,7 +1446,7 @@ def _render_correlation_tab(colors: dict, theme: str):
         )
     )
 
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
 
     with st.expander("How to Use Correlation Data", expanded=False):
         st.markdown(
@@ -1656,7 +1670,7 @@ The 13-week and 26-week moving averages smooth the signal — crossovers can ind
         titleColor=colors["text_muted"],
         gridColor=f'{colors["text_muted"]}22',
     )
-    st.altair_chart(styled, use_container_width=True)
+    st.altair_chart(styled, width="stretch")
 
     # ---- RS Table ----
     st.markdown(
@@ -1775,7 +1789,7 @@ The 13-week and 26-week moving averages smooth the signal — crossovers can ind
                 titleColor=colors["text_muted"],
                 gridColor=f'{colors["text_muted"]}22',
             )
-            st.altair_chart(styled, use_container_width=True)
+            st.altair_chart(styled, width="stretch")
             st.caption(
                 f"Blue = RS line ({selected_ticker} price / {benchmark} price, normalized). "
                 f"Green dashed = 13-week MA. Orange dashed = 26-week MA. "
@@ -1916,7 +1930,7 @@ Mean-reversion bounces are traps in Stage 4. Wait for Stage 1 basing before reco
             labelColor=colors["text_muted"],
             labelFontSize=12,
         )
-        st.altair_chart(styled_donut, use_container_width=False)
+        st.altair_chart(styled_donut, width="content")
 
     # ---- Stage 2 Table (Advancing — the buy candidates) ----
     st.markdown("---")
@@ -2028,7 +2042,7 @@ Mean-reversion bounces are traps in Stage 4. Wait for Stage 1 basing before reco
                     titleColor=colors["text_muted"],
                     gridColor=f'{colors["text_muted"]}22',
                 )
-                st.altair_chart(styled, use_container_width=True)
+                st.altair_chart(styled, width="stretch")
                 st.markdown(
                     f'<div style="font-size:12px; color:{colors["text_muted"]};">'
                     f'Current classification: <span style="color:{stage_clr}; font-weight:600;">{stage_label}</span>. '

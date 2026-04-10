@@ -344,7 +344,7 @@ def _render_rel_vol_chart(rel_vol_df: pd.DataFrame, colors: dict, theme: str):
         )
     )
 
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
 
 
 def _render_zscore_chart(zscore_df: pd.DataFrame, colors: dict, theme: str):
@@ -404,7 +404,7 @@ def _render_zscore_chart(zscore_df: pd.DataFrame, colors: dict, theme: str):
         )
     )
 
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
 
 
 def _render_regime_charts_tab(data: dict, colors: dict, theme: str):
@@ -475,7 +475,7 @@ def _render_regime_charts_tab(data: dict, colors: dict, theme: str):
             )
         )
 
-        st.altair_chart(chart, use_container_width=True)
+        st.altair_chart(chart, width="stretch")
 
 
 def _render_statistics_tab(data: dict, colors: dict, theme: str):
@@ -505,7 +505,7 @@ def _render_statistics_tab(data: dict, colors: dict, theme: str):
                 "Max Z": s["max_zscore"],
             })
 
-        st.dataframe(pd.DataFrame(rows).set_index("Factor"), use_container_width=True)
+        st.dataframe(pd.DataFrame(rows).set_index("Factor"), width="stretch")
 
     # Correlation matrix
     if not zscore_df.empty:
@@ -516,7 +516,7 @@ def _render_statistics_tab(data: dict, colors: dict, theme: str):
             unsafe_allow_html=True,
         )
         corr = zscore_df.corr().round(2)
-        st.dataframe(corr, use_container_width=True)
+        st.dataframe(corr, width="stretch")
 
 
 def _render_backtest_tab(data: dict, colors: dict, theme: str):
@@ -611,4 +611,4 @@ def _render_backtest_tab(data: dict, colors: dict, theme: str):
         )
     )
 
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")

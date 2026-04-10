@@ -237,7 +237,7 @@ def _render_yield_curve_tab(api_key: str, colors: dict, theme: str):
             )
         )
 
-        st.altair_chart(_style_chart(lines, colors, 340), use_container_width=True)
+        st.altair_chart(_style_chart(lines, colors, 340), width="stretch")
 
     # Spread history expander
     with st.expander("Spread History", expanded=False):
@@ -277,7 +277,7 @@ def _render_yield_curve_tab(api_key: str, colors: dict, theme: str):
                     .encode(y="y:Q")
                 )
 
-                st.altair_chart(_style_chart(zero + lines, colors, 280), use_container_width=True)
+                st.altair_chart(_style_chart(zero + lines, colors, 280), width="stretch")
 
     # ---- Historical Treasury Yield Spread (10Y-1Y) with recession shading ----
     _render_yield_spread_history(api_key, colors, theme)
@@ -468,7 +468,7 @@ def _render_yield_spread_history(api_key: str, colors: dict, theme: str):
             .resolve_scale(y="independent")
         )
 
-    st.altair_chart(_style_chart(chart, colors, 350), use_container_width=True)
+    st.altair_chart(_style_chart(chart, colors, 350), width="stretch")
 
 
 @st.cache_data(ttl=3600, show_spinner=False)
@@ -605,7 +605,7 @@ def _render_yield_vs_pe(api_key: str, colors: dict, theme: str):
         .resolve_scale(y="independent")
     )
 
-    st.altair_chart(_style_chart(chart, colors, 380), use_container_width=True)
+    st.altair_chart(_style_chart(chart, colors, 380), width="stretch")
 
     # Manual legend since dual-axis charts don't auto-legend well
     st.markdown(
@@ -747,7 +747,7 @@ def _render_global_yields(api_key: str, colors: dict, theme: str):
                     [zero, spread_line], api_key, colors, selected_cc,
                     recessions, d_min, d_max,
                 )
-                st.altair_chart(_style_chart(chart, colors, 280), use_container_width=True)
+                st.altair_chart(_style_chart(chart, colors, 280), width="stretch")
 
                 etf_label = f"{etf_ticker}" if etf_ticker else ""
                 st.caption(
@@ -833,7 +833,7 @@ def _render_global_yields(api_key: str, colors: dict, theme: str):
                 chart = _add_spy_and_recessions(
                     [us_line], api_key, colors, d_min, d_max
                 )
-                st.altair_chart(_style_chart(chart, colors, 280), use_container_width=True)
+                st.altair_chart(_style_chart(chart, colors, 280), width="stretch")
 
 
 # ---------------------------------------------------------------------------
@@ -935,7 +935,7 @@ def _render_inflation_tab(api_key: str, colors: dict, theme: str):
         d_max = df.index.max().strftime("%Y-%m-%d")
         chart = _add_spy_and_recessions([target, lines], api_key, colors, d_min, d_max)
 
-        st.altair_chart(_style_chart(chart, colors, 350), use_container_width=True)
+        st.altair_chart(_style_chart(chart, colors, 350), width="stretch")
 
     # Breakeven chart
     be_cols = [c for c in df.columns if "Breakeven" in c]
@@ -972,7 +972,7 @@ def _render_inflation_tab(api_key: str, colors: dict, theme: str):
                 .encode(y="y:Q")
             )
 
-            st.altair_chart(_style_chart(target2 + be_lines, colors, 280), use_container_width=True)
+            st.altair_chart(_style_chart(target2 + be_lines, colors, 280), width="stretch")
 
     # ---- Global Inflation Comparison ----
     _render_global_inflation(api_key, colors, theme)
@@ -1089,7 +1089,7 @@ def _render_global_inflation(api_key: str, colors: dict, theme: str):
                 [target, cpi_line], api_key, colors, selected_cc,
                 recessions, d_min, d_max,
             )
-            st.altair_chart(_style_chart(chart, colors, 280), use_container_width=True)
+            st.altair_chart(_style_chart(chart, colors, 280), width="stretch")
 
             etf_ticker = COUNTRY_ETF.get(selected_cc, "")
             st.caption(
@@ -1227,7 +1227,7 @@ def _render_fed_policy_tab(api_key: str, colors: dict, theme: str):
         d_min = df.index.min().strftime("%Y-%m-%d")
         d_max = df.index.max().strftime("%Y-%m-%d")
         combined = _add_spy_and_recessions(layers, api_key, colors, d_min, d_max)
-        st.altair_chart(_style_chart(combined, colors, 380), use_container_width=True)
+        st.altair_chart(_style_chart(combined, colors, 380), width="stretch")
 
     # Rate change table
     with st.expander("Rate Change History", expanded=False):
@@ -1244,7 +1244,7 @@ def _render_fed_policy_tab(api_key: str, colors: dict, theme: str):
                         "New Target": f"{target.loc[dt]:.2f}%",
                 })
                 change_df = pd.DataFrame(change_rows)
-                st.dataframe(change_df.set_index("Date"), use_container_width=True)
+                st.dataframe(change_df.set_index("Date"), width="stretch")
             else:
                 st.caption("No rate changes in the data range.")
 
@@ -1328,7 +1328,7 @@ def _render_m2_tab(api_key: str, colors: dict, theme: str):
         d_min = m2_df.index.min().strftime("%Y-%m-%d")
         d_max = m2_df.index.max().strftime("%Y-%m-%d")
         chart = _add_spy_and_recessions([zero, bars], api_key, colors, d_min, d_max)
-        st.altair_chart(_style_chart(chart, colors, 350), use_container_width=True)
+        st.altair_chart(_style_chart(chart, colors, 350), width="stretch")
 
     st.caption(
         "M2 money supply growth tends to lead equity market performance by approximately "
@@ -1429,7 +1429,7 @@ def _render_pmi_tab(api_key: str, colors: dict, theme: str):
         )
     )
 
-    st.altair_chart(chart, use_container_width=True)
+    st.altair_chart(chart, width="stretch")
 
     # Latest PMI summary — colored cards
     st.markdown(
@@ -1582,7 +1582,7 @@ def _render_cli_section(api_key: str, colors: dict, theme: str):
                 [ref_100, cli_line], api_key, colors, selected_cc,
                 recessions, d_min, d_max,
             )
-            st.altair_chart(_style_chart(chart, colors, 280), use_container_width=True)
+            st.altair_chart(_style_chart(chart, colors, 280), width="stretch")
 
             etf_ticker = COUNTRY_ETF.get(selected_cc, "")
             st.caption(

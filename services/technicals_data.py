@@ -14,47 +14,43 @@ _TTL_12H = 43200
 # ---------------------------------------------------------------------------
 
 
-@st.cache_data(ttl=_TTL_12H, show_spinner=False)
-def _fetch_rrg_weekly_prices() -> dict | None:
-    """Download weekly sector + SPY prices (cached, independent of trail length)."""
+_MAX_TRAIL = 8  # pre-compute trails for all slider positions
+
+
+def _fetch_and_compute_all_rrg() -> dict:
+    """Download sector prices once and pre-compute RRG for all trail lengths 1-8.
+
+    Stored in st.session_state so it survives slider changes without
+    re-downloading or re-computing. Call clear_rrg_cache() to force refresh.
+
+    Returns dict keyed by trail_weeks (1-8), each containing:
+      - current: DataFrame (Ticker, Name, RS_Ratio, RS_Momentum, ...)
+      - trails: dict of {ticker: [trail points]}
+    """
+    # Return from session state if already computed
+    if "rrg_all_trails" in st.session_state and st.session_state.rrg_all_trails:
+        return st.session_state.rrg_all_trails
+
     tickers = list(SECTOR_ETFS.keys()) + ["SPY"]
     try:
         raw = yf.download(tickers, period="2y", interval="1wk",
                           progress=False, auto_adjust=True, timeout=120)
     except Exception:
-        return None
+        return {}
 
     if raw.empty:
-        return None
+        return {}
 
     close = raw["Close"]
     if isinstance(close, pd.Series):
-        return None
+        return {}
 
     spy = close.get("SPY")
     if spy is None or spy.dropna().empty:
-        return None
-
-    return {"close": close, "spy": spy}
-
-
-def fetch_rrg_data(trail_weeks: int = 4) -> dict:
-    """Compute Relative Rotation Graph data for sector ETFs.
-
-    Returns dict with:
-      - current: DataFrame (ticker, name, rs_ratio, rs_momentum, ret_1m, ret_3m, quadrant)
-      - trails: dict of {ticker: [(rs_ratio, rs_momentum), ...]} for trail lines
-    """
-    prices = _fetch_rrg_weekly_prices()
-    if prices is None:
         return {}
 
-    close = prices["close"]
-    spy = prices["spy"]
-
-    rows = []
-    trails = {}
-
+    # Pre-compute RS-Ratio per sector (shared across all trail lengths)
+    sector_data = {}  # ticker -> {aligned, rs_ratio, prices, ret_1m, ret_3m}
     for ticker, name in SECTOR_ETFS.items():
         if ticker not in close.columns:
             continue
@@ -62,71 +58,95 @@ def fetch_rrg_data(trail_weeks: int = 4) -> dict:
         if len(sector) < 60:
             continue
 
-        # Align with SPY
         aligned = pd.DataFrame({"Sector": sector, "SPY": spy}).dropna()
         if len(aligned) < 60:
             continue
 
-        # RS line: sector / SPY * 100
         rs = aligned["Sector"] / aligned["SPY"] * 100
-
-        # RS-Ratio: RS / 52-week MA of RS * 100
         rs_ma = rs.rolling(52, min_periods=26).mean()
         rs_ratio = rs / rs_ma * 100
 
-        # RS-Momentum: RS-Ratio / RS-Ratio.shift(trail_weeks) * 100
-        rs_momentum = rs_ratio / rs_ratio.shift(trail_weeks) * 100
-
-        # Current values
-        current_ratio = rs_ratio.iloc[-1]
-        current_momentum = rs_momentum.iloc[-1]
-
-        if pd.isna(current_ratio) or pd.isna(current_momentum):
-            continue
-
-        # Returns
         prices_col = aligned["Sector"]
         ret_1m = (prices_col.iloc[-1] / prices_col.iloc[-4] - 1) * 100 if len(prices_col) > 4 else 0
         ret_3m = (prices_col.iloc[-1] / prices_col.iloc[-13] - 1) * 100 if len(prices_col) > 13 else 0
 
-        # Quadrant
-        if current_ratio >= 100 and current_momentum >= 100:
-            quadrant = "Leading"
-        elif current_ratio >= 100 and current_momentum < 100:
-            quadrant = "Weakening"
-        elif current_ratio < 100 and current_momentum < 100:
-            quadrant = "Lagging"
-        else:
-            quadrant = "Improving"
+        sector_data[ticker] = {
+            "name": name,
+            "rs_ratio": rs_ratio,
+            "ret_1m": round(ret_1m, 1),
+            "ret_3m": round(ret_3m, 1),
+        }
 
-        rows.append({
-            "Ticker": ticker,
-            "Name": name,
-            "RS_Ratio": round(current_ratio, 2),
-            "RS_Momentum": round(current_momentum, 2),
-            "Ret_1M": round(ret_1m, 1),
-            "Ret_3M": round(ret_3m, 1),
-            "Quadrant": quadrant,
-        })
-
-        # Trail: last N+1 weeks of coordinates
-        trail_pts = []
-        for i in range(trail_weeks + 1):
-            idx = -(trail_weeks + 1 - i)
-            if abs(idx) <= len(rs_ratio) and abs(idx) <= len(rs_momentum):
-                r = rs_ratio.iloc[idx]
-                m = rs_momentum.iloc[idx]
-                if not pd.isna(r) and not pd.isna(m):
-                    trail_pts.append({"RS_Ratio": round(r, 2), "RS_Momentum": round(m, 2)})
-        trails[ticker] = trail_pts
-
-    if not rows:
+    if not sector_data:
         return {}
 
-    return {
-        "current": pd.DataFrame(rows),
-        "trails": trails,
-    }
+    # Build results for every trail length
+    all_trails = {}
+    for tw in range(1, _MAX_TRAIL + 1):
+        rows = []
+        trails = {}
+
+        for ticker, sd in sector_data.items():
+            rs_ratio = sd["rs_ratio"]
+            rs_momentum = rs_ratio / rs_ratio.shift(tw) * 100
+
+            current_ratio = rs_ratio.iloc[-1]
+            current_momentum = rs_momentum.iloc[-1]
+
+            if pd.isna(current_ratio) or pd.isna(current_momentum):
+                continue
+
+            if current_ratio >= 100 and current_momentum >= 100:
+                quadrant = "Leading"
+            elif current_ratio >= 100 and current_momentum < 100:
+                quadrant = "Weakening"
+            elif current_ratio < 100 and current_momentum < 100:
+                quadrant = "Lagging"
+            else:
+                quadrant = "Improving"
+
+            rows.append({
+                "Ticker": ticker,
+                "Name": sd["name"],
+                "RS_Ratio": round(current_ratio, 2),
+                "RS_Momentum": round(current_momentum, 2),
+                "Ret_1M": sd["ret_1m"],
+                "Ret_3M": sd["ret_3m"],
+                "Quadrant": quadrant,
+            })
+
+            # Trail: last tw+1 weeks of coordinates
+            trail_pts = []
+            for i in range(tw + 1):
+                idx = -(tw + 1 - i)
+                if abs(idx) <= len(rs_ratio) and abs(idx) <= len(rs_momentum):
+                    r = rs_ratio.iloc[idx]
+                    m = rs_momentum.iloc[idx]
+                    if not pd.isna(r) and not pd.isna(m):
+                        trail_pts.append({"RS_Ratio": round(r, 2), "RS_Momentum": round(m, 2)})
+            trails[ticker] = trail_pts
+
+        if rows:
+            all_trails[tw] = {"current": pd.DataFrame(rows), "trails": trails}
+
+    st.session_state.rrg_all_trails = all_trails
+    return all_trails
+
+
+def clear_rrg_cache():
+    """Clear pre-computed RRG data so next access re-downloads."""
+    st.session_state.pop("rrg_all_trails", None)
+
+
+def fetch_rrg_data(trail_weeks: int = 4) -> dict:
+    """Get pre-computed RRG data for a specific trail length.
+
+    Returns dict with:
+      - current: DataFrame (Ticker, Name, RS_Ratio, RS_Momentum, ...)
+      - trails: dict of {ticker: [trail points]}
+    """
+    all_data = _fetch_and_compute_all_rrg()
+    return all_data.get(trail_weeks, {})
 
 
 @st.cache_data(ttl=_TTL_12H, show_spinner=False)

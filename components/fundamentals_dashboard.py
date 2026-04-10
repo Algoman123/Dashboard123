@@ -507,7 +507,7 @@ def _render_surprise_chart(ticker: str, df: pd.DataFrame, colors: dict, theme: s
         titleColor=colors["text_muted"],
         gridColor=f'{colors["text_muted"]}22',
     )
-    st.altair_chart(styled, use_container_width=True)
+    st.altair_chart(styled, width="stretch")
 
     st.caption(
         "Grouped bars: grey = estimate, blue = actual. Labels show surprise %. "
@@ -611,7 +611,7 @@ def _render_sector_valuations_tab(fmp_key: str | None, colors: dict, theme: str)
             titleColor=colors["text_muted"],
             gridColor=f'{colors["text_muted"]}22',
         )
-        st.altair_chart(styled, use_container_width=True)
+        st.altair_chart(styled, width="stretch")
 
     # ---- Valuation Table ----
     st.markdown(
@@ -762,7 +762,7 @@ def _render_sector_valuations_tab(fmp_key: str | None, colors: dict, theme: str)
             titleColor=colors["text_muted"],
             gridColor=f'{colors["text_muted"]}22',
         )
-        st.altair_chart(styled, use_container_width=True)
+        st.altair_chart(styled, width="stretch")
 
         st.caption(
             "X-axis = trailing P/E (cheaper → left, expensive → right). "
@@ -1216,7 +1216,7 @@ def _render_analyst_tab(finnhub_key: str | None, colors: dict, theme: str):
             titleColor=colors["text_muted"],
             gridColor=f'{colors["text_muted"]}22',
         )
-        st.altair_chart(styled, use_container_width=True)
+        st.altair_chart(styled, width="stretch")
 
     # ---- Recent Upgrades/Downgrades ----
     if not upgrades.empty:

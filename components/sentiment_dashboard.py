@@ -283,7 +283,7 @@ def _render_fear_greed_tab(colors: dict, theme: str):
         else:
             chart = ref_25 + ref_75 + score_line
 
-        st.altair_chart(_style_chart(chart, colors, 300), use_container_width=True)
+        st.altair_chart(_style_chart(chart, colors, 300), width="stretch")
 
     st.caption(
         "Extreme Fear readings have historically been contrarian buy signals. "
@@ -952,7 +952,7 @@ def _render_breadth_tab(colors: dict, theme: str):
         else:
             chart = os_ + ob + area
 
-        st.altair_chart(_style_chart(chart, colors, 280), use_container_width=True)
+        st.altair_chart(_style_chart(chart, colors, 280), width="stretch")
 
     # Render all three charts
     _breadth_chart(
@@ -1141,7 +1141,7 @@ def _render_aaii_tab(colors: dict, theme: str):
         else:
             chart = area
 
-        st.altair_chart(_style_chart(chart, colors, 300), use_container_width=True)
+        st.altair_chart(_style_chart(chart, colors, 300), width="stretch")
 
     # Bull-Bear spread chart
     if not recent.empty:
@@ -1480,7 +1480,7 @@ def _render_aaii_backtest(df: pd.DataFrame, colors: dict, theme: str):
         x="Date:T", y="BuyHold:Q",
         tooltip=[alt.Tooltip("BuyHold:Q", format="$,.0f"), "Date:T"],
     )
-    st.altair_chart(_style_chart(bh_line + eq_line, colors, 280), use_container_width=True)
+    st.altair_chart(_style_chart(bh_line + eq_line, colors, 280), width="stretch")
 
     # Drawdown
     dd_vals = (eq_series - eq_series.cummax()) / eq_series.cummax() * 100
@@ -1497,7 +1497,7 @@ def _render_aaii_backtest(df: pd.DataFrame, colors: dict, theme: str):
     bh_dd_line = alt.Chart(bh_dd_df).mark_line(strokeWidth=1, opacity=0.4, color=colors["text_muted"]).encode(
         x="Date:T", y="BuyHold:Q")
 
-    st.altair_chart(_style_chart(bh_dd_line + dd_area, colors, 150), use_container_width=True)
+    st.altair_chart(_style_chart(bh_dd_line + dd_area, colors, 150), width="stretch")
     st.caption(f"Blue = strategy, Grey = buy & hold {etf}. Backtests ignore costs/slippage.")
 
     if total_trades > 0:
