@@ -15,6 +15,29 @@ _TTL_12H = 43200
 
 
 @st.cache_data(ttl=_TTL_12H, show_spinner=False)
+def _fetch_rrg_weekly_prices() -> dict | None:
+    """Download weekly sector + SPY prices (cached, independent of trail length)."""
+    tickers = list(SECTOR_ETFS.keys()) + ["SPY"]
+    try:
+        raw = yf.download(tickers, period="2y", interval="1wk",
+                          progress=False, auto_adjust=True, timeout=120)
+    except Exception:
+        return None
+
+    if raw.empty:
+        return None
+
+    close = raw["Close"]
+    if isinstance(close, pd.Series):
+        return None
+
+    spy = close.get("SPY")
+    if spy is None or spy.dropna().empty:
+        return None
+
+    return {"close": close, "spy": spy}
+
+
 def fetch_rrg_data(trail_weeks: int = 4) -> dict:
     """Compute Relative Rotation Graph data for sector ETFs.
 
@@ -22,23 +45,12 @@ def fetch_rrg_data(trail_weeks: int = 4) -> dict:
       - current: DataFrame (ticker, name, rs_ratio, rs_momentum, ret_1m, ret_3m, quadrant)
       - trails: dict of {ticker: [(rs_ratio, rs_momentum), ...]} for trail lines
     """
-    tickers = list(SECTOR_ETFS.keys()) + ["SPY"]
-    try:
-        raw = yf.download(tickers, period="2y", interval="1wk",
-                          progress=False, auto_adjust=True, timeout=120)
-    except Exception:
+    prices = _fetch_rrg_weekly_prices()
+    if prices is None:
         return {}
 
-    if raw.empty:
-        return {}
-
-    close = raw["Close"]
-    if isinstance(close, pd.Series):
-        return {}
-
-    spy = close.get("SPY")
-    if spy is None or spy.dropna().empty:
-        return {}
+    close = prices["close"]
+    spy = prices["spy"]
 
     rows = []
     trails = {}
@@ -73,9 +85,9 @@ def fetch_rrg_data(trail_weeks: int = 4) -> dict:
             continue
 
         # Returns
-        prices = aligned["Sector"]
-        ret_1m = (prices.iloc[-1] / prices.iloc[-4] - 1) * 100 if len(prices) > 4 else 0
-        ret_3m = (prices.iloc[-1] / prices.iloc[-13] - 1) * 100 if len(prices) > 13 else 0
+        prices_col = aligned["Sector"]
+        ret_1m = (prices_col.iloc[-1] / prices_col.iloc[-4] - 1) * 100 if len(prices_col) > 4 else 0
+        ret_3m = (prices_col.iloc[-1] / prices_col.iloc[-13] - 1) * 100 if len(prices_col) > 13 else 0
 
         # Quadrant
         if current_ratio >= 100 and current_momentum >= 100:

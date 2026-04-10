@@ -11,6 +11,7 @@ from services.technicals_data import (
     AC_LAGS,
     STAGE_LABELS,
     STAGE_COLORS,
+    _fetch_rrg_weekly_prices,
     fetch_rrg_data,
     fetch_rrg_backtest_data,
     fetch_correlation_matrix,
@@ -42,7 +43,7 @@ def render_technicals_dashboard(colors: dict, theme: str):
         )
     with hdr_right:
         if st.button("🔄", key="refresh_technicals", help="Refresh technicals data"):
-            fetch_rrg_data.clear()
+            _fetch_rrg_weekly_prices.clear()
             fetch_rrg_backtest_data.clear()
             fetch_correlation_matrix.clear()
             st.rerun()
