@@ -8,16 +8,29 @@ A real-time portfolio monitoring dashboard for [Portfolio123](https://www.portfo
 
 ## Features
 
+### Portfolio Monitoring
 - **P123 Strategy & Screen Monitoring** — Live holdings from your Portfolio123 strategies, screens, and ranking systems
 - **Ranking Radar Charts** — Spider/radar visualizations of composite ranking node scores for any ticker
 - **TradingView Charts** — Full interactive TradingView charts with MA ribbon and volume overlays
 - **Market Overview** — Customizable top bar with major indices, sparkline mini-charts, and daily performance
 - **Top Gainers & Losers** — Real-time top movers across all your monitored tickers
+
+### Analysis Dashboards
+- **Macro Indicators** — Yield curves, GDP growth, CPI inflation, CLI leading indicators via FRED API
+- **Market Sentiment** — Fear & Greed index, market breadth (advance/decline), AAII survey, Reddit mentions
+- **Technicals** — Sector rotation (Relative Rotation Graph), correlation matrix, RS ranking, stage analysis
+- **Factor Regimes** — Factor ETF regime analysis across value, momentum, quality, size, and volatility
+- **Fundamentals Dashboard** — Earnings calendar, sector P/E valuations, dividends, analyst revisions, IPO calendar
+- **Per-Ticker Fundamentals** — Detailed fundamental view for any selected stock
+
+### Tools & Workflow
 - **Strategy Trader** — Rebalance workflow panel: fetch recommendations, adjust shares, commit trades via P123 API
 - **News Feed** — Per-ticker news from Yahoo Finance, plus an aggregated multi-ticker news panel
 - **Community Forum** — Latest posts from the P123 community forum
 - **Grok AI Analysis** — One-click deep analysis of any ticker via Grok with a customizable question template
 - **Trader Notes** — Per-ticker notes that persist across sessions
+
+### Customization
 - **Dark / Light Theme** — Full theme support with a single click
 - **Configurable Sidebar** — Drag-and-drop group ordering, per-group column indicators (RSI, SMA, relative volume, etc.)
 - **Auto-Refresh** — Configurable refresh interval for market data
@@ -77,6 +90,17 @@ P123_API_ID=your_api_id_here
 P123_API_KEY=your_api_key_here
 ```
 
+Optional API keys for the analysis dashboards (add to `.env`):
+
+```
+FRED_API_KEY=your_fred_key_here
+FINNHUB_API_KEY=your_finnhub_key_here
+```
+
+- **FRED API key** (free) — Powers the Macro dashboard. Get one at [https://fred.stlouisfed.org/docs/api/api_key.html](https://fred.stlouisfed.org/docs/api/api_key.html)
+- **Finnhub API key** (free tier) — Earnings calendar and insider trades. Get one at [https://finnhub.io/register](https://finnhub.io/register)
+- The Sentiment, Technicals, Factor, and Fundamentals dashboards work without any API keys (they use yfinance and public data sources)
+
 ### Settings Dialog
 
 Click the **gear icon** (⚙️) in the sidebar to access settings:
@@ -93,6 +117,31 @@ Click the **gear icon** (⚙️) in the sidebar to access settings:
 ### First Run
 
 On first launch, if no P123 API credentials are detected, the Settings dialog opens automatically to the API tab. The dashboard will still work without P123 credentials — you'll see market data for custom groups, indices, and sectors, but P123-specific features (strategies, screens, rankings, trader) will be unavailable.
+
+## Updating
+
+Your personal settings (`config.json`, `.env`, and all data files) are excluded from git and will never be overwritten by updates.
+
+```bash
+cd Dashboard123
+
+# Pull the latest code
+git pull
+
+# Install any new dependencies
+pip install -r requirements.txt
+```
+
+If you're using a virtual environment (recommended), activate it first:
+```bash
+# Windows:
+venv\Scripts\activate
+# macOS/Linux:
+source venv/bin/activate
+
+git pull
+pip install -r requirements.txt
+```
 
 ## File Structure
 
@@ -111,6 +160,12 @@ Dashboard123/
     chart.py                TradingView embedded chart
     market_overview.py      Market indices with sparklines
     gainers_losers.py       Top movers
+    factor_dashboard.py     Factor regime analysis
+    fundamentals.py         Per-ticker fundamentals
+    fundamentals_dashboard.py  Earnings, valuations, dividends
+    macro_dashboard.py      FRED economic indicators
+    sentiment_dashboard.py  Sentiment analysis
+    technicals_dashboard.py Sector rotation, correlation, stages
     forum_posts.py          P123 community feed
     news.py                 Per-ticker news
     news_feed.py            Aggregated news panel
@@ -119,15 +174,22 @@ Dashboard123/
     trader_panel.py         Rebalance workflow
 
   services/                 Data & API layer
+    api_keys.py             Centralized API key management
     config_manager.py       JSON config CRUD
     market_data.py          yfinance data fetching
     p123_client.py          Portfolio123 API wrapper
+    factor_data.py          Factor ETF data
+    fred_data.py            FRED API integration
+    fundamentals_data.py    Fundamental data via yfinance
+    fundamentals_dashboard_data.py  Earnings, sector valuations
+    sentiment_data.py       Fear & Greed, breadth, AAII, Reddit
+    technicals_data.py      Sector rotation, correlation, stages
     forum_data.py           Discourse forum API
     news_data.py            Yahoo Finance news
     trader_notes.py         Persistence for notes & data
 
   utils/                    Shared utilities
-    constants.py            Colors, ticker names, defaults
+    constants.py            Colors, ticker names, sector ETFs
     indicators.py           Technical indicator formatting
     market_hours.py         Market open/close detection
     theme.py                Dark/light theme CSS
