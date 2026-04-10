@@ -120,28 +120,41 @@ On first launch, if no P123 API credentials are detected, the Settings dialog op
 
 ## Updating
 
-Your personal settings (`config.json`, `.env`, and all data files) are excluded from git and will never be overwritten by updates.
+Your personal settings (`config.json`, `.env`, and all data files) will never be overwritten by updates.
+
+### If you cloned with git
 
 ```bash
 cd Dashboard123
 
-# Pull the latest code
-git pull
+# Activate virtual environment first (if using one)
+# Windows: venv\Scripts\activate
+# macOS/Linux: source venv/bin/activate
 
-# Install any new dependencies
+git pull
 pip install -r requirements.txt
 ```
 
-If you're using a virtual environment (recommended), activate it first:
+### If you downloaded the ZIP
+
+If you downloaded the ZIP from GitHub (no `.git` folder), follow these steps:
+
+1. Download the latest ZIP from GitHub and extract it to a temporary folder
+2. Copy your personal files from the old folder to the new one:
+   - `.env` (your API keys)
+   - `config.json` (your settings — strategies, groups, sidebar order, etc.)
+   - Any `*_data.json` / `*_holdings.json` / `*_notes.json` files (your saved data)
+3. Install updated dependencies in the new folder:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Replace the old folder with the new one
+
+**Tip:** To make future updates easier, consider switching to a git clone:
 ```bash
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
-
-git pull
-pip install -r requirements.txt
+git clone https://github.com/Algoman123/Dashboard123.git
 ```
+Then copy your `.env` and `config.json` into the cloned folder. Future updates will be a simple `git pull`.
 
 ## File Structure
 
