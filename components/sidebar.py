@@ -8,6 +8,17 @@ from utils.p123_icon import P123_WAVE_SVG as _P123_WAVE_SVG
 from utils.indicators import INDICATORS, format_indicator
 
 
+_DASHBOARDS = ("factor", "macro", "sentiment", "technicals", "fundamentals")
+
+
+def _toggle_dashboard(name: str):
+    """Activate a single full-screen dashboard (or deactivate if already active)."""
+    currently_active = st.session_state.get(f"show_{name}_dashboard", False)
+    for db in _DASHBOARDS:
+        st.session_state[f"show_{db}_dashboard"] = (db == name and not currently_active)
+    st.rerun()
+
+
 def collect_all_tickers(config: dict) -> set[str]:
     """Gather all unique tickers from all groups."""
     tickers = set()
@@ -177,7 +188,8 @@ def render_sidebar():
         f'</svg>',
         unsafe_allow_html=True,
     )
-    c1, c2, c3, c4 = st.columns(4)
+    # Row 1: core buttons
+    c1, c2, c3, c4, c5 = st.columns(5)
     with c1:
         theme_icon = "☀️" if theme == "dark" else "🌙"
         if st.button(theme_icon, key="theme_toggle", use_container_width=True, help="Toggle theme"):
@@ -195,19 +207,62 @@ def render_sidebar():
             st.cache_data.clear()
             st.rerun()
     with c4:
-        mode = st.session_state.get("right_panel_mode", 0)
-        _icons = ["📈", "📰", "✖️"]
-        _helps = ["Open Trader", "Switch to News", "Close Panel"]
-        if st.button(
-            _icons[mode],
-            key="panel_toggle_btn",
-            use_container_width=True,
-            help=_helps[mode],
-        ):
-            st.session_state.right_panel_mode = (mode + 1) % 3
+        factor_active = st.session_state.get("show_factor_dashboard", False)
+        icon = "✖️" if factor_active else "🔬"
+        help_text = "Close Factor Dashboard" if factor_active else "Factor Regimes"
+        if st.button(icon, key="factor_dash_btn", use_container_width=True, help=help_text):
+            _toggle_dashboard("factor")
+    with c5:
+        macro_active = st.session_state.get("show_macro_dashboard", False)
+        m_icon = "✖️" if macro_active else "🌍"
+        m_help = "Close Macro" if macro_active else "Macro Indicators"
+        if st.button(m_icon, key="macro_dash_btn", use_container_width=True, help=m_help):
+            _toggle_dashboard("macro")
+
+    # Row 2: panels & future functions
+    r2c1, r2c2, r2c3, r2c4, r2c5 = st.columns(5)
+    panel_mode = st.session_state.get("right_panel_mode", 0)
+    with r2c1:
+        trader_label = "✖️" if panel_mode == 1 else "📈"
+        trader_help = "Close Trader" if panel_mode == 1 else "Open Trader"
+        if st.button(trader_label, key="trader_btn", use_container_width=True, help=trader_help):
+            st.session_state.right_panel_mode = 0 if panel_mode == 1 else 1
             st.rerun()
+    with r2c2:
+        news_label = "✖️" if panel_mode == 2 else "📰"
+        news_help = "Close News Feed" if panel_mode == 2 else "Open News Feed"
+        if st.button(news_label, key="news_feed_btn", use_container_width=True, help=news_help):
+            st.session_state.right_panel_mode = 0 if panel_mode == 2 else 2
+            st.rerun()
+    with r2c3:
+        sent_active = st.session_state.get("show_sentiment_dashboard", False)
+        s_icon = "✖️" if sent_active else "🧠"
+        s_help = "Close Sentiment" if sent_active else "Market Sentiment"
+        if st.button(s_icon, key="sentiment_dash_btn", use_container_width=True, help=s_help):
+            _toggle_dashboard("sentiment")
+    with r2c4:
+        tech_active = st.session_state.get("show_technicals_dashboard", False)
+        t_icon = "✖️" if tech_active else "📊"
+        t_help = "Close Technicals" if tech_active else "Technicals"
+        if st.button(t_icon, key="technicals_dash_btn", use_container_width=True, help=t_help):
+            _toggle_dashboard("technicals")
+    with r2c5:
+        fund_active = st.session_state.get("show_fundamentals_dashboard", False)
+        f_icon = "✖️" if fund_active else "💰"
+        f_help = "Close Fundamentals" if fund_active else "Fundamentals"
+        if st.button(f_icon, key="fund_dash_btn", use_container_width=True, help=f_help):
+            _toggle_dashboard("fundamentals")
 
     st.markdown("---")
+
+    # Skip heavy ticker tables when a full-screen dashboard is active
+    if (st.session_state.get("show_factor_dashboard")
+            or st.session_state.get("show_macro_dashboard")
+            or st.session_state.get("show_sentiment_dashboard")
+            or st.session_state.get("show_technicals_dashboard")
+            or st.session_state.get("show_fundamentals_dashboard")):
+        st.caption("Return to main dashboard to see ticker lists.")
+        return
 
     # ---- Collect tickers and fetch market data ----
     all_tickers = collect_all_tickers(config)

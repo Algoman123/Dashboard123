@@ -35,6 +35,20 @@ TICKER_DISPLAY_NAMES = {
 OVERVIEW_TICKERS = ["^GSPC", "^NDX", "^RUT", "^N100", "^N225", "^VIX", "GC=F"]
 
 
+SECTOR_ETFS = {
+    "XLK": "Technology",
+    "XLF": "Financials",
+    "XLV": "Healthcare",
+    "XLE": "Energy",
+    "XLI": "Industrials",
+    "XLP": "Cons. Staples",
+    "XLY": "Cons. Disc.",
+    "XLU": "Utilities",
+    "XLB": "Materials",
+    "XLRE": "Real Estate",
+    "XLC": "Communication",
+}
+
 COLORS_DARK = {
     "bg": "#0e1117",
     "bg_secondary": "#1a1f2e",

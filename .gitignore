@@ -15,6 +15,12 @@ trader_data.json
 trader_notes.json
 strategy_holdings.json
 screen_holdings.json
+fg_history.json
+aaii_sentiment.xls
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
 
 # IDE / tooling
 .claude/

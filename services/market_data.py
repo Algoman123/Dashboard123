@@ -64,6 +64,7 @@ def fetch_market_data(tickers: tuple[str, ...]) -> pd.DataFrame:
             threads=True,
             progress=False,
             auto_adjust=True,
+            timeout=30,
         )
     except Exception:
         return pd.DataFrame()

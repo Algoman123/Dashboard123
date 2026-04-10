@@ -75,7 +75,7 @@ def load_config() -> dict:
     if not os.path.exists(CONFIG_PATH):
         save_config(DEFAULT_CONFIG)
         return DEFAULT_CONFIG.copy()
-    with open(CONFIG_PATH, "r") as f:
+    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         config = json.load(f)
     config = _migrate(config)
     return config
@@ -156,7 +156,7 @@ def _migrate(config: dict) -> dict:
 
 
 def save_config(config: dict) -> None:
-    with open(CONFIG_PATH, "w") as f:
+    with open(CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(config, f, indent=2)
 
 

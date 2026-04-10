@@ -620,6 +620,7 @@ def get_theme_css(theme: str) -> str:
         color: {c['text']} !important;
         text-decoration: none !important;
         white-space: nowrap;
+        cursor: pointer;
     }}
     .nf-ticker:hover {{
         background: {c['bg_hover']} !important;
@@ -632,15 +633,19 @@ def get_theme_css(theme: str) -> str:
     .nf-time {{
         color: {c['text_muted']}88;
     }}
-    .nf-title {{
+    .nf-title, .nf-title:visited, .nf-title:active {{
         font-size: 13px;
         font-weight: 600;
-        color: {c['text']};
+        color: {c['text']} !important;
+        text-decoration: none !important;
         line-height: 1.3;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
         overflow: hidden;
+    }}
+    .nf-title:hover {{
+        color: {c['green']} !important;
     }}
     .nf-summary {{
         font-size: 11px;
@@ -650,6 +655,19 @@ def get_theme_css(theme: str) -> str:
         -webkit-line-clamp: 1;
         -webkit-box-orient: vertical;
         overflow: hidden;
+    }}
+
+    /* ---- Factor Regime Dashboard ---- */
+    .factor-card {{
+        background: {c['bg_card']};
+        border-radius: 10px;
+        padding: 14px 16px;
+        text-align: center;
+        border: 1px solid {c['border']};
+        transition: transform 0.15s;
+    }}
+    .factor-card:hover {{
+        transform: translateY(-2px);
     }}
 
     /* ---- Hide Streamlit defaults ---- */

@@ -8,9 +8,15 @@ from components.market_overview import render_market_overview
 from components.gainers_losers import render_gainers_losers
 from components.forum_posts import render_forum_posts
 from components.news import render_ticker_news
+from components.fundamentals import render_fundamentals
 from components.settings_dialog import render_settings_dialog
 from components.trader_panel import render_trader_panel
 from components.news_feed import render_news_feed
+from components.factor_dashboard import render_factor_dashboard
+from components.macro_dashboard import render_macro_dashboard
+from components.sentiment_dashboard import render_sentiment_dashboard
+from components.technicals_dashboard import render_technicals_dashboard
+from components.fundamentals_dashboard import render_fundamentals_dashboard
 from utils.theme import get_theme_css
 from utils.constants import DEFAULT_TICKER, TICKER_DISPLAY_NAMES, COLORS_DARK, COLORS_LIGHT
 from services.p123_client import is_p123_configured
@@ -69,6 +75,24 @@ def init_session_state():
         st.session_state.ranking_data = saved_rankings
         st.session_state.ranking_nodes = saved_nodes
         st.session_state.ranking_last_update = saved_ranking_update
+
+    # Full-screen dashboard toggles
+    if "show_factor_dashboard" not in st.session_state:
+        st.session_state.show_factor_dashboard = False
+    if "show_macro_dashboard" not in st.session_state:
+        st.session_state.show_macro_dashboard = False
+    if "selected_country" not in st.session_state:
+        st.session_state.selected_country = "US"
+    if "selected_cpi_country" not in st.session_state:
+        st.session_state.selected_cpi_country = "US"
+    if "selected_cli_country" not in st.session_state:
+        st.session_state.selected_cli_country = "US"
+    if "show_sentiment_dashboard" not in st.session_state:
+        st.session_state.show_sentiment_dashboard = False
+    if "show_technicals_dashboard" not in st.session_state:
+        st.session_state.show_technicals_dashboard = False
+    if "show_fundamentals_dashboard" not in st.session_state:
+        st.session_state.show_fundamentals_dashboard = False
 
     # Auto-open settings to API tab if P123 not configured (once per session)
     if not is_p123_configured() and "api_settings_prompted" not in st.session_state:
@@ -329,6 +353,8 @@ def _render_main_content(selected: str, colors: dict, theme: str):
 
     render_ticker_news(selected, colors)
 
+    render_fundamentals(selected, colors)
+
 
 def main():
     st.set_page_config(
@@ -377,25 +403,36 @@ def main():
     with st.sidebar:
         render_sidebar()
 
-    # Main area — optionally split with right panel (trader or news feed)
-    selected = st.session_state.selected_ticker
-    panel_mode = st.session_state.get("right_panel_mode", 0)
-
-    if panel_mode == 1:  # Trader panel
-        col_main, col_right = st.columns([7, 3])
-        with col_main:
-            _render_main_content(selected, colors, theme)
-        with col_right:
-            render_trader_panel()
-    elif panel_mode == 2:  # News feed
-        col_main, col_right = st.columns([7, 3])
-        with col_main:
-            _render_main_content(selected, colors, theme)
-        with col_right:
-            render_news_feed()
+    # Main area — full-screen dashboards or normal view
+    if st.session_state.get("show_factor_dashboard", False):
+        render_factor_dashboard(colors, theme)
+    elif st.session_state.get("show_macro_dashboard", False):
+        render_macro_dashboard(colors, theme)
+    elif st.session_state.get("show_sentiment_dashboard", False):
+        render_sentiment_dashboard(colors, theme)
+    elif st.session_state.get("show_technicals_dashboard", False):
+        render_technicals_dashboard(colors, theme)
+    elif st.session_state.get("show_fundamentals_dashboard", False):
+        render_fundamentals_dashboard(colors, theme)
     else:
-        # Full width — render directly to avoid CSS scope leak
-        _render_main_content(selected, colors, theme)
+        selected = st.session_state.selected_ticker
+        panel_mode = st.session_state.get("right_panel_mode", 0)
+
+        if panel_mode == 1:  # Trader panel
+            col_main, col_right = st.columns([7, 3])
+            with col_main:
+                _render_main_content(selected, colors, theme)
+            with col_right:
+                render_trader_panel()
+        elif panel_mode == 2:  # News feed
+            col_main, col_right = st.columns([7, 3])
+            with col_main:
+                _render_main_content(selected, colors, theme)
+            with col_right:
+                render_news_feed()
+        else:
+            # Full width — render directly to avoid CSS scope leak
+            _render_main_content(selected, colors, theme)
 
 
 if __name__ == "__main__":

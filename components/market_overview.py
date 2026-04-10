@@ -17,7 +17,7 @@ SPARKLINE_PARAMS = {
 def _fetch_sparkline_data(ticker: str, period: str, interval: str) -> list[float]:
     """Fetch price data for sparkline chart."""
     try:
-        data = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=True)
+        data = yf.download(ticker, period=period, interval=interval, progress=False, auto_adjust=True, timeout=30)
         if data.empty:
             return []
         close = data["Close"].dropna()

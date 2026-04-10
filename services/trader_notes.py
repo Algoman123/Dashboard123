@@ -23,7 +23,7 @@ def load_notes() -> dict:
     if not os.path.exists(NOTES_PATH):
         return {}
     try:
-        with open(NOTES_PATH, "r") as f:
+        with open(NOTES_PATH, "r", encoding="utf-8") as f:
             raw = json.load(f)
         return {
             (int(k.split("|", 1)[0]), k.split("|", 1)[1]): v
@@ -36,7 +36,7 @@ def load_notes() -> dict:
 def save_notes(notes: dict) -> None:
     """Save notes to disk. Expects {(strategy_id, ticker): note_text}."""
     raw = {f"{sid}|{ticker}": text for (sid, ticker), text in notes.items()}
-    with open(NOTES_PATH, "w") as f:
+    with open(NOTES_PATH, "w", encoding="utf-8") as f:
         json.dump(raw, f, indent=2)
 
 
@@ -83,7 +83,7 @@ def save_trader_data(trader_data: dict, last_update: datetime | None) -> None:
         "last_update": last_update.isoformat() if last_update else None,
         "strategies": serializable,
     }
-    with open(TRADER_DATA_PATH, "w") as f:
+    with open(TRADER_DATA_PATH, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
 
 
@@ -95,7 +95,7 @@ def load_trader_data() -> tuple[dict, datetime | None]:
     if not os.path.exists(TRADER_DATA_PATH):
         return {}, None
     try:
-        with open(TRADER_DATA_PATH, "r") as f:
+        with open(TRADER_DATA_PATH, "r", encoding="utf-8") as f:
             payload = json.load(f)
 
         last_update = None
@@ -142,7 +142,7 @@ def save_ranking_data(
         "rankings": {str(k): v for k, v in ranking_data.items()},
         "nodes": {str(k): v for k, v in (nodes_data or {}).items()},
     }
-    with open(RANKING_DATA_PATH, "w") as f:
+    with open(RANKING_DATA_PATH, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
 
 
@@ -154,7 +154,7 @@ def load_ranking_data() -> tuple[dict, dict, datetime | None]:
     if not os.path.exists(RANKING_DATA_PATH):
         return {}, {}, None
     try:
-        with open(RANKING_DATA_PATH, "r") as f:
+        with open(RANKING_DATA_PATH, "r", encoding="utf-8") as f:
             payload = json.load(f)
         last_update = None
         if payload.get("last_update"):
@@ -179,7 +179,7 @@ def _save_holdings(path: str, data: dict, last_update: datetime | None) -> None:
         "last_update": last_update.isoformat() if last_update else None,
         "holdings": {str(k): v for k, v in data.items()},
     }
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
 
 
@@ -188,7 +188,7 @@ def _load_holdings(path: str) -> tuple[dict, datetime | None]:
     if not os.path.exists(path):
         return {}, None
     try:
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             payload = json.load(f)
         last_update = None
         if payload.get("last_update"):

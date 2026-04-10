@@ -83,10 +83,15 @@ def render_news_feed():
         else:
             thumb_html = ''
 
-        # Ticker badge
-        badge_html = (
-            f'<span class="nf-ticker">{html.escape(ticker)}</span>'
-        ) if ticker else ""
+        # Ticker badge — links to in-app ticker page (not the news article)
+        if ticker:
+            ticker_url = f"?select={urllib.parse.quote(ticker)}&nf=1"
+            badge_html = (
+                f'<a href="{ticker_url}" class="nf-ticker" '
+                f'target="_self">{html.escape(ticker)}</a>'
+            )
+        else:
+            badge_html = ""
 
         # Meta line: ticker badge · source · time
         meta_parts = [badge_html] if badge_html else []
@@ -105,14 +110,14 @@ def render_news_feed():
         )
 
         rows.append(
-            f'<a href="{url}" target="_blank" class="nf-item">'
+            f'<div class="nf-item">'
             f'{thumb_html}'
             f'<span class="nf-content">'
             f'{meta_html}'
-            f'<span class="nf-title">{title_escaped}</span>'
+            f'<a href="{url}" target="_blank" class="nf-title">{title_escaped}</a>'
             f'{summary_html}'
             f'</span>'
-            f'</a>'
+            f'</div>'
         )
 
     rows.append('</div>')

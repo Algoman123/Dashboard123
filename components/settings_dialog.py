@@ -114,6 +114,19 @@ def render_settings_dialog():
 
         strategies = config.get("strategies", [])
         if strategies:
+            if st.button("🔄 Refresh All Strategies", key="refresh_all_strat", type="secondary"):
+                strat_data = st.session_state.get("strategy_holdings", {})
+                for strat in strategies:
+                    with st.spinner(f"Fetching {strat['name']}..."):
+                        holdings, api_quota = fetch_strategy_holdings(strat["strategy_id"])
+                    strat_data[strat["strategy_id"]] = holdings
+                    if api_quota is not None:
+                        st.session_state.p123_api_quota = api_quota
+                st.session_state.strategy_holdings = strat_data
+                now = datetime.now(timezone.utc)
+                st.session_state.strategy_holdings_update = now
+                save_strategy_holdings(strat_data, now)
+                _rerun()
             _sw = [2.5, 1.5, 1.5, 1.5, 0.5, 0.4, 0.4, 0.4, 1]
             hdr = st.columns(_sw)
             hdr[0].caption("Name")
@@ -160,7 +173,6 @@ def render_settings_dialog():
                     now = datetime.now(timezone.utc)
                     st.session_state.strategy_holdings_update = now
                     save_strategy_holdings(strat_data, now)
-                    st.cache_data.clear()
                     if api_quota is not None:
                         st.session_state.p123_api_quota = api_quota
                     _rerun()
@@ -174,7 +186,6 @@ def render_settings_dialog():
                         config = remove_strategy(config, strat["strategy_id"])
                         save_config(config)
                         st.session_state.config = config
-                        st.cache_data.clear()
                         _rerun()
         else:
             st.info("No strategies configured yet.")
@@ -191,7 +202,6 @@ def render_settings_dialog():
             config = add_strategy(config, new_name, int(new_id))
             save_config(config)
             st.session_state.config = config
-            st.cache_data.clear()
             _rerun()
 
     # ---- P123 Screens Tab ----
@@ -203,6 +213,21 @@ def render_settings_dialog():
 
         screens = config.get("screens", [])
         if screens:
+            if st.button("🔄 Refresh All Screens", key="refresh_all_scr", type="secondary"):
+                scr_data = st.session_state.get("screen_holdings", {})
+                for scr in screens:
+                    with st.spinner(f"Fetching {scr['name']}..."):
+                        holdings, api_quota = fetch_screen_holdings(
+                            scr["screen_id"], scr.get("max_holdings", 50)
+                        )
+                    scr_data[scr["screen_id"]] = holdings
+                    if api_quota is not None:
+                        st.session_state.p123_api_quota = api_quota
+                st.session_state.screen_holdings = scr_data
+                now = datetime.now(timezone.utc)
+                st.session_state.screen_holdings_update = now
+                save_screen_holdings(scr_data, now)
+                _rerun()
             _scw = [2, 1, 0.8, 1.3, 1.3, 0.5, 0.4, 0.4, 0.4, 1]
             hdr = st.columns(_scw)
             hdr[0].caption("Name")
@@ -254,7 +279,6 @@ def render_settings_dialog():
                     now = datetime.now(timezone.utc)
                     st.session_state.screen_holdings_update = now
                     save_screen_holdings(scr_data, now)
-                    st.cache_data.clear()
                     if api_quota is not None:
                         st.session_state.p123_api_quota = api_quota
                     _rerun()
@@ -268,7 +292,6 @@ def render_settings_dialog():
                         config = remove_screen(config, scr["screen_id"])
                         save_config(config)
                         st.session_state.config = config
-                        st.cache_data.clear()
                         _rerun()
         else:
             st.info("No screens configured yet.")
@@ -287,7 +310,6 @@ def render_settings_dialog():
             config = add_screen(config, scr_name, int(scr_id), int(scr_max))
             save_config(config)
             st.session_state.config = config
-            st.cache_data.clear()
             _rerun()
 
     # ---- P123 Rankings Tab ----
@@ -299,6 +321,27 @@ def render_settings_dialog():
 
         rankings = config.get("rankings", [])
         if rankings:
+            if st.button("🔄 Refresh All Rankings", key="refresh_all_rank", type="secondary"):
+                ranking_data = st.session_state.get("ranking_data", {})
+                ranking_nodes = st.session_state.get("ranking_nodes", {})
+                for rnk in rankings:
+                    with st.spinner(f"Fetching {rnk['name']}..."):
+                        holdings, nodes_data, api_quota = fetch_ranking_holdings(
+                            rnk["ranking_id"],
+                            rnk.get("universe", "Easy to Trade US"),
+                        )
+                    if holdings:
+                        ranking_data[rnk["ranking_id"]] = holdings
+                        if nodes_data:
+                            ranking_nodes[rnk["ranking_id"]] = nodes_data
+                    if api_quota is not None:
+                        st.session_state.p123_api_quota = api_quota
+                st.session_state.ranking_data = ranking_data
+                st.session_state.ranking_nodes = ranking_nodes
+                now = datetime.now(timezone.utc)
+                st.session_state.ranking_last_update = now
+                save_ranking_data(ranking_data, ranking_nodes, now)
+                _rerun()
             _rw = [1.8, 0.8, 1.8, 0.6, 1.2, 1.2, 0.4, 0.4, 0.4, 0.4, 0.8]
             hdr = st.columns(_rw)
             hdr[0].caption("Name")
@@ -359,7 +402,6 @@ def render_settings_dialog():
                         now = datetime.now(timezone.utc)
                         st.session_state.ranking_last_update = now
                         save_ranking_data(ranking_data, ranking_nodes, now)
-                        st.cache_data.clear()
                         if api_quota is not None:
                             st.session_state.p123_api_quota = api_quota
                     _rerun()
@@ -379,7 +421,6 @@ def render_settings_dialog():
                         config = remove_ranking(config, rnk["ranking_id"])
                         save_config(config)
                         st.session_state.config = config
-                        st.cache_data.clear()
                         _rerun()
         else:
             st.info("No rankings configured yet.")
@@ -421,27 +462,28 @@ def render_settings_dialog():
             hdr[3].caption("Col 3")
             hdr[4].caption("News")
             for i, group in enumerate(groups):
+                gname = group["name"]
                 c_nm, c_tk, c_c2, c_c3, c_nf, c_up, c_dn, c_rm = st.columns(_gw)
                 with c_nm:
-                    st.text(group["name"])
+                    st.text(gname)
                 with c_tk:
                     new_tickers_str = st.text_input(
                         "Tickers",
                         value=", ".join(group.get("tickers", [])),
-                        key=f"edit_group_{i}",
+                        key=f"edit_group_{gname}",
                         label_visibility="collapsed",
                     )
                     new_tickers = [
                         t.strip().upper() for t in new_tickers_str.split(",") if t.strip()
                     ]
                     if new_tickers != group.get("tickers", []):
-                        config = update_custom_group_tickers(config, group["name"], new_tickers)
+                        config = update_custom_group_tickers(config, gname, new_tickers)
                         save_config(config)
                         st.session_state.config = config
-                _render_col_selectors(group, config, f"group_{i}", c_c2, c_c3)
+                _render_col_selectors(group, config, f"group_{gname}", c_c2, c_c3)
                 with c_nf:
                     nf_val = group.get("news_feed", True)
-                    new_nf = st.checkbox("nf", value=nf_val, key=f"nf_group_{i}",
+                    new_nf = st.checkbox("nf", value=nf_val, key=f"nf_group_{gname}",
                                          label_visibility="collapsed")
                     if new_nf != nf_val:
                         group["news_feed"] = new_nf
@@ -462,7 +504,7 @@ def render_settings_dialog():
                         _rerun()
                 with c_rm:
                     if st.button("Remove", key=f"rm_group_{i}", type="secondary"):
-                        config = remove_custom_group(config, group["name"])
+                        config = remove_custom_group(config, gname)
                         save_config(config)
                         st.session_state.config = config
                         _rerun()
@@ -525,46 +567,115 @@ def render_settings_dialog():
 
     # ---- API Settings Tab ----
     with tab3:
+        env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+
+        # Read all current values from .env
+        _env_keys = {}
+        if os.path.exists(env_path):
+            with open(env_path, "r") as f:
+                for line in f:
+                    line = line.strip()
+                    if "=" in line and not line.startswith("#"):
+                        k, v = line.split("=", 1)
+                        _env_keys[k.strip()] = v.strip()
+
+        # -- Portfolio123 --
         st.markdown("**Portfolio123 API Connection**")
         if is_p123_configured():
             st.success("P123 API: Credentials configured")
         else:
             st.warning("P123 API: Not configured")
 
-        env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+        with st.form("api_keys_form"):
+            new_api_id = st.text_input(
+                "API ID",
+                value=_env_keys.get("P123_API_ID", ""),
+                key="p123_api_id_input",
+                placeholder="Your P123 API ID",
+            )
+            new_api_key = st.text_input(
+                "API Key",
+                value=_env_keys.get("P123_API_KEY", ""),
+                key="p123_api_key_input",
+                placeholder="Your P123 API Key",
+            )
 
-        # Read current values from .env (display only, not the env vars)
-        current_id = ""
-        current_key = ""
-        if os.path.exists(env_path):
-            with open(env_path, "r") as f:
-                for line in f:
-                    line = line.strip()
-                    if line.startswith("P123_API_ID"):
-                        current_id = line.split("=", 1)[1].strip()
-                    elif line.startswith("P123_API_KEY"):
-                        current_key = line.split("=", 1)[1].strip()
+            st.markdown("---")
 
-        new_api_id = st.text_input(
-            "API ID",
-            value=current_id,
-            key="p123_api_id_input",
-            placeholder="Your P123 API ID",
-        )
-        new_api_key = st.text_input(
-            "API Key",
-            value=current_key,
-            key="p123_api_key_input",
-            placeholder="Your P123 API Key",
-        )
+            # -- Additional API Keys --
+            st.markdown("**Additional API Keys** *(optional — for extended modules)*")
 
-        if st.button("Save API Credentials", type="primary"):
-            with open(env_path, "w") as f:
-                f.write(f"P123_API_ID={new_api_id.strip()}\n")
-                f.write(f"P123_API_KEY={new_api_key.strip()}\n")
-            st.success("Saved! Restart the app to apply new credentials.")
-            os.environ["P123_API_ID"] = new_api_id.strip()
-            os.environ["P123_API_KEY"] = new_api_key.strip()
+            st.caption("FRED API Key — *Used by: Macro, Alternatives*")
+            new_fred = st.text_input(
+                "FRED API Key",
+                value=_env_keys.get("FRED_API_KEY", ""),
+                key="fred_api_key_input",
+                placeholder="Your FRED API Key",
+                label_visibility="collapsed",
+            )
+            st.markdown(
+                "[Get free key →](https://fred.stlouisfed.org/docs/api/fred/)",
+                unsafe_allow_html=False,
+            )
+
+            st.caption("Finnhub API Key — *Used by: Sentiment, Fundamentals*")
+            new_finnhub = st.text_input(
+                "Finnhub API Key",
+                value=_env_keys.get("FINNHUB_API_KEY", ""),
+                key="finnhub_api_key_input",
+                placeholder="Your Finnhub API Key",
+                label_visibility="collapsed",
+            )
+            st.markdown(
+                "[Get free key →](https://finnhub.io/register)",
+                unsafe_allow_html=False,
+            )
+
+            st.caption("Alpha Vantage API Key — *Used by: Sentiment*")
+            new_av = st.text_input(
+                "Alpha Vantage Key",
+                value=_env_keys.get("ALPHAVANTAGE_KEY", ""),
+                key="av_api_key_input",
+                placeholder="Your Alpha Vantage Key",
+                label_visibility="collapsed",
+            )
+            st.markdown(
+                "[Get free key →](https://alphavantage.co/support/#api-key)",
+                unsafe_allow_html=False,
+            )
+
+            st.caption("FMP API Key — *Used by: Fundamentals*")
+            new_fmp = st.text_input(
+                "FMP API Key",
+                value=_env_keys.get("FMP_API_KEY", ""),
+                key="fmp_api_key_input",
+                placeholder="Your FMP API Key",
+                label_visibility="collapsed",
+            )
+            st.markdown(
+                "[Get free key →](https://financialmodelingprep.com/developer)",
+                unsafe_allow_html=False,
+            )
+
+            if st.form_submit_button("Save API Credentials", type="primary"):
+                # Build env content — only write keys that have values
+                env_lines = []
+                _pairs = [
+                    ("P123_API_ID", new_api_id),
+                    ("P123_API_KEY", new_api_key),
+                    ("FRED_API_KEY", new_fred),
+                    ("FINNHUB_API_KEY", new_finnhub),
+                    ("ALPHAVANTAGE_KEY", new_av),
+                    ("FMP_API_KEY", new_fmp),
+                ]
+                for k, v in _pairs:
+                    val = v.strip()
+                    if val:
+                        env_lines.append(f"{k}={val}\n")
+                        os.environ[k] = val
+                with open(env_path, "w") as f:
+                    f.writelines(env_lines)
+                st.success("Saved! Restart the app to apply new credentials.")
 
     # ---- Data Settings Tab ----
     with tab4:
@@ -586,7 +697,6 @@ def render_settings_dialog():
             settings["overview_tickers"] = new_overview
             save_config(config)
             st.session_state.config = config
-            st.cache_data.clear()
             _rerun()
 
         st.markdown("---")
@@ -664,7 +774,6 @@ def render_settings_dialog():
             settings["sparkline_period"] = new_spark
             save_config(config)
             st.session_state.config = config
-            st.cache_data.clear()
             _rerun()
 
         st.markdown("---")
