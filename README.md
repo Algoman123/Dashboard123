@@ -100,7 +100,7 @@ ADANOS_API_KEY=your_adanos_key_here
 
 - **FRED API key** (free) — Powers the Macro dashboard. Get one at [https://fred.stlouisfed.org/docs/api/api_key.html](https://fred.stlouisfed.org/docs/api/api_key.html)
 - **Finnhub API key** (free tier) — Earnings calendar and insider trades. Get one at [https://finnhub.io/register](https://finnhub.io/register)
-- **Adanos API key** (optional) — Enables cross-platform market sentiment for selected watchlist tickers in the Sentiment dashboard. Get access at [https://api.adanos.org](https://api.adanos.org)
+- **Adanos API key** (optional) — Enables cross-platform market sentiment for selected watchlist tickers in the Sentiment dashboard. Get access at [https://api.adanos.org/docs/](https://api.adanos.org/docs/)
 - The Sentiment, Technicals, Factor, and Fundamentals dashboards work without any API keys (they use yfinance and public data sources). Adanos sentiment is skipped unless `ADANOS_API_KEY` is configured.
 
 ### Settings Dialog
