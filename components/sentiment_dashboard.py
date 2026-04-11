@@ -9,8 +9,10 @@ from services.sentiment_data import (
     fetch_fear_greed_history,
     fetch_breadth_data,
     fetch_aaii_sentiment,
+    fetch_adanos_sentiment,
     download_aaii_xls,
 )
+from services.api_keys import get_adanos_key
 
 
 def render_sentiment_dashboard(colors: dict, theme: str):
@@ -38,10 +40,11 @@ def render_sentiment_dashboard(colors: dict, theme: str):
             fetch_fear_greed_history.clear()
             fetch_breadth_data.clear()
             fetch_aaii_sentiment.clear()
+            fetch_adanos_sentiment.clear()
             st.rerun()
 
-    tab_fg, tab_br, tab_aaii = st.tabs([
-        "Fear & Greed", "Market Breadth", "AAII Survey",
+    tab_fg, tab_br, tab_aaii, tab_adanos = st.tabs([
+        "Fear & Greed", "Market Breadth", "AAII Survey", "Adanos Sentiment",
     ])
 
     with tab_fg:
@@ -52,6 +55,9 @@ def render_sentiment_dashboard(colors: dict, theme: str):
 
     with tab_aaii:
         _render_aaii_tab(colors, theme)
+
+    with tab_adanos:
+        _render_adanos_tab(colors, theme)
 
 
 # ---------------------------------------------------------------------------
@@ -75,6 +81,156 @@ def _style_chart(chart, colors: dict, height: int = 280):
             labelColor=colors["text"],
             titleColor=colors["text"],
         )
+    )
+
+
+def _parse_adanos_ticker_input(value: str) -> tuple[str, ...]:
+    """Parse comma or whitespace-separated tickers for the Adanos tab."""
+    tickers: list[str] = []
+    seen: set[str] = set()
+    for token in str(value or "").replace(",", " ").split():
+        ticker = token.strip().upper().replace("$", "")
+        if not ticker or ticker.startswith("^") or "=" in ticker or ticker.endswith("-USD"):
+            continue
+        if ticker in seen:
+            continue
+        tickers.append(ticker)
+        seen.add(ticker)
+        if len(tickers) >= 10:
+            break
+    return tuple(tickers)
+
+
+def _default_adanos_tickers() -> str:
+    """Seed the Adanos tab from the active ticker/watchlist when available."""
+    candidates: list[str] = []
+
+    selected_ticker = st.session_state.get("selected_ticker")
+    if selected_ticker:
+        candidates.append(selected_ticker)
+
+    feed_tickers = st.session_state.get("news_feed_tickers")
+    if isinstance(feed_tickers, str):
+        candidates.extend(feed_tickers.replace(",", " ").split())
+    elif isinstance(feed_tickers, (list, tuple, set)):
+        candidates.extend(feed_tickers)
+
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for ticker in candidates:
+        value = str(ticker or "").strip().upper().replace("$", "")
+        if not value or value.startswith("^") or "=" in value or value.endswith("-USD") or value in seen:
+            continue
+        normalized.append(value)
+        seen.add(value)
+        if len(normalized) >= 5:
+            break
+
+    return ", ".join(normalized) if normalized else "SPY, QQQ, TSLA, NVDA, AAPL"
+
+
+def _render_adanos_tab(colors: dict, theme: str):
+    """Optional Adanos Market Sentiment API enrichment."""
+    st.markdown(
+        f"""
+        <div class="factor-card" style="padding:14px; margin-bottom:12px;">
+            <div style="font-size:15px; font-weight:600; color:{colors['text_header']}; margin-bottom:4px;">
+                Optional Adanos Market Sentiment
+            </div>
+            <div style="font-size:12px; color:{colors['text_muted']}; line-height:1.6;">
+                Adds authenticated watchlist sentiment from Reddit, X/Twitter, news, and Polymarket.
+                No Adanos request is made unless <code>ADANOS_API_KEY</code> is configured.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    input_col, days_col = st.columns([4, 1])
+    with input_col:
+        ticker_input = st.text_input(
+            "Tickers",
+            value=_default_adanos_tickers(),
+            key="adanos_sentiment_tickers",
+            help="Comma or space-separated symbols. Adanos compare endpoints support up to 10 tickers.",
+        )
+    with days_col:
+        days = st.slider("Days", 1, 90, 30, 1, key="adanos_sentiment_days")
+
+    tickers = _parse_adanos_ticker_input(ticker_input)
+    if not tickers:
+        st.info("Enter at least one stock ticker to load Adanos sentiment.")
+        return
+
+    if not get_adanos_key():
+        st.info(
+            "Set ADANOS_API_KEY in your .env file to enable this optional sentiment source. "
+            "Until then, the dashboard skips Adanos network calls."
+        )
+        return
+
+    df = fetch_adanos_sentiment(tickers, days=days)
+    if df.empty:
+        st.warning("No Adanos sentiment data returned for the selected tickers and lookback.")
+        return
+
+    buzz = pd.to_numeric(df.get("Buzz Score", pd.Series(dtype=float)), errors="coerce")
+    sentiment = pd.to_numeric(df.get("Sentiment Score", pd.Series(dtype=float)), errors="coerce")
+    top_row = df.iloc[0]
+
+    k1, k2, k3, k4 = st.columns(4)
+    with k1:
+        st.metric("Tickers", df["Ticker"].nunique())
+    with k2:
+        st.metric("Avg Buzz", f"{buzz.mean():.1f}" if buzz.notna().any() else "N/A")
+    with k3:
+        st.metric("Avg Sentiment", f"{sentiment.mean():+.2f}" if sentiment.notna().any() else "N/A")
+    with k4:
+        st.metric("Top Signal", top_row["Ticker"], top_row["Platform"])
+
+    display_columns = [
+        "Platform",
+        "Ticker",
+        "Company",
+        "Buzz Score",
+        "Sentiment Score",
+        "Bullish %",
+        "Bearish %",
+        "Mentions",
+        "Source Count",
+        "Trade Count",
+        "Liquidity",
+        "Trend",
+    ]
+    present_columns = [column for column in display_columns if column in df.columns]
+    st.dataframe(df[present_columns], use_container_width=True, hide_index=True)
+
+    chart_df = df.dropna(subset=["Buzz Score"]).copy()
+    if not chart_df.empty:
+        chart_df["Signal"] = chart_df["Ticker"] + " / " + chart_df["Platform"]
+        chart = (
+            alt.Chart(chart_df)
+            .mark_bar(cornerRadiusEnd=3)
+            .encode(
+                x=alt.X("Buzz Score:Q", title="Buzz Score", scale=alt.Scale(domain=[0, 100])),
+                y=alt.Y("Signal:N", title=None, sort="-x"),
+                color=alt.Color("Platform:N", legend=alt.Legend(orient="top", title=None)),
+                tooltip=[
+                    "Platform:N",
+                    "Ticker:N",
+                    alt.Tooltip("Buzz Score:Q", format=".1f"),
+                    alt.Tooltip("Sentiment Score:Q", format="+.2f"),
+                    alt.Tooltip("Bullish %:Q", format=".0f"),
+                    alt.Tooltip("Bearish %:Q", format=".0f"),
+                    "Trend:N",
+                ],
+            )
+        )
+        st.altair_chart(_style_chart(chart, colors, 300), use_container_width=True)
+
+    st.caption(
+        "Adanos data is optional and fetched only with ADANOS_API_KEY. "
+        "Use it to enrich Dashboard123 watchlists with cross-platform retail and market sentiment."
     )
 
 
@@ -1509,5 +1665,3 @@ def _render_aaii_backtest(df: pd.DataFrame, colors: dict, theme: str):
             log["ExitPrice"] = log["ExitPrice"].round(2)
             log["Return"] = log["Return"].apply(lambda x: f"{x:+.2f}%")
             st.dataframe(log, use_container_width=True, hide_index=True)
-
-

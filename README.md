@@ -17,7 +17,7 @@ A real-time portfolio monitoring dashboard for [Portfolio123](https://www.portfo
 
 ### Analysis Dashboards
 - **Macro Indicators** — Yield curves, GDP growth, CPI inflation, CLI leading indicators via FRED API
-- **Market Sentiment** — Fear & Greed index, market breadth (advance/decline), AAII survey, Reddit mentions
+- **Market Sentiment** — Fear & Greed index, market breadth (advance/decline), AAII survey, Reddit mentions, and optional Adanos watchlist sentiment
 - **Technicals** — Sector rotation (Relative Rotation Graph), correlation matrix, RS ranking, stage analysis
 - **Factor Regimes** — Factor ETF regime analysis across value, momentum, quality, size, and volatility
 - **Fundamentals Dashboard** — Earnings calendar, sector P/E valuations, dividends, analyst revisions, IPO calendar
@@ -95,11 +95,13 @@ Optional API keys for the analysis dashboards (add to `.env`):
 ```
 FRED_API_KEY=your_fred_key_here
 FINNHUB_API_KEY=your_finnhub_key_here
+ADANOS_API_KEY=your_adanos_key_here
 ```
 
 - **FRED API key** (free) — Powers the Macro dashboard. Get one at [https://fred.stlouisfed.org/docs/api/api_key.html](https://fred.stlouisfed.org/docs/api/api_key.html)
 - **Finnhub API key** (free tier) — Earnings calendar and insider trades. Get one at [https://finnhub.io/register](https://finnhub.io/register)
-- The Sentiment, Technicals, Factor, and Fundamentals dashboards work without any API keys (they use yfinance and public data sources)
+- **Adanos API key** (optional) — Enables cross-platform market sentiment for selected watchlist tickers in the Sentiment dashboard. Get access at [https://api.adanos.org](https://api.adanos.org)
+- The Sentiment, Technicals, Factor, and Fundamentals dashboards work without any API keys (they use yfinance and public data sources). Adanos sentiment is skipped unless `ADANOS_API_KEY` is configured.
 
 ### Settings Dialog
 
