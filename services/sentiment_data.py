@@ -9,9 +9,170 @@ import requests
 import streamlit as st
 import yfinance as yf
 
+from services.api_keys import get_adanos_key
+
 # Cache TTLs
 _TTL_12H = 43200
 _TTL_24H = 86400
+
+_ADANOS_BASE_URL = "https://api.adanos.org"
+_ADANOS_ENDPOINTS = {
+    "reddit": "/reddit/stocks/v1",
+    "x": "/x/stocks/v1",
+    "news": "/news/stocks/v1",
+    "polymarket": "/polymarket/stocks/v1",
+}
+_ADANOS_PLATFORM_LABELS = {
+    "reddit": "Reddit",
+    "x": "X/Twitter",
+    "news": "News",
+    "polymarket": "Polymarket",
+}
+_ADANOS_TICKER_PATTERN = re.compile(r"^[A-Z0-9][A-Z0-9.-]{0,11}$")
+
+
+def _normalize_adanos_days(days: int) -> int:
+    """Return Adanos API-compatible lookback days."""
+    try:
+        parsed = int(days)
+    except (TypeError, ValueError):
+        parsed = 30
+    return min(365, max(1, parsed))
+
+
+def _normalize_adanos_tickers(tickers) -> tuple[str, ...]:
+    """Normalize ticker input for Adanos compare endpoints."""
+    raw_items = re.split(r"[,\s]+", tickers) if isinstance(tickers, str) else tickers
+    normalized: list[str] = []
+    seen: set[str] = set()
+
+    for raw_ticker in raw_items or ():
+        ticker = str(raw_ticker or "").strip().upper().replace("$", "")
+        if not ticker or ticker.startswith("^") or "=" in ticker or ticker.endswith("-USD"):
+            continue
+        if not _ADANOS_TICKER_PATTERN.match(ticker):
+            continue
+        if ticker in seen:
+            continue
+        normalized.append(ticker)
+        seen.add(ticker)
+        if len(normalized) >= 10:
+            break
+
+    return tuple(normalized)
+
+
+def _coerce_adanos_number(value):
+    """Convert API number-like values to float or None."""
+    if value in (None, ""):
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not np.isfinite(number):
+        return None
+    return number
+
+
+def _first_adanos_value(row: dict, *keys: str):
+    for key in keys:
+        value = row.get(key)
+        if value not in (None, ""):
+            return value
+    return None
+
+
+def _adanos_rows_from_payload(payload, platform: str) -> list[dict]:
+    """Build display rows from an Adanos compare response."""
+    if isinstance(payload, dict):
+        items = payload.get("stocks") or []
+    elif isinstance(payload, list):
+        items = payload
+    else:
+        items = []
+
+    rows: list[dict] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+
+        ticker = str(item.get("ticker") or "").strip().upper()
+        if not ticker:
+            continue
+
+        rows.append(
+            {
+                "Platform": _ADANOS_PLATFORM_LABELS.get(platform, platform.title()),
+                "Ticker": ticker,
+                "Company": item.get("company_name") or item.get("name") or ticker,
+                "Buzz Score": _coerce_adanos_number(item.get("buzz_score")),
+                "Sentiment Score": _coerce_adanos_number(
+                    _first_adanos_value(item, "sentiment_score", "sentiment")
+                ),
+                "Bullish %": _coerce_adanos_number(item.get("bullish_pct")),
+                "Bearish %": _coerce_adanos_number(item.get("bearish_pct")),
+                "Mentions": _coerce_adanos_number(
+                    _first_adanos_value(item, "mentions", "total_mentions")
+                ),
+                "Source Count": _coerce_adanos_number(item.get("source_count")),
+                "Trade Count": _coerce_adanos_number(item.get("trade_count")),
+                "Liquidity": _coerce_adanos_number(item.get("total_liquidity")),
+                "Trend": item.get("trend") or "",
+            }
+        )
+    return rows
+
+
+@st.cache_data(ttl=_TTL_12H, show_spinner=False)
+def fetch_adanos_sentiment(
+    tickers: tuple[str, ...],
+    days: int = 30,
+    platforms: tuple[str, ...] = ("reddit", "x", "news", "polymarket"),
+) -> pd.DataFrame:
+    """Fetch optional Adanos Market Sentiment compare data for a watchlist.
+
+    No request is made unless ADANOS_API_KEY is configured.
+    """
+    api_key = get_adanos_key()
+    normalized_tickers = _normalize_adanos_tickers(tickers)
+    normalized_platforms = tuple(p for p in platforms if p in _ADANOS_ENDPOINTS)
+
+    if not api_key or not normalized_tickers or not normalized_platforms:
+        return pd.DataFrame()
+
+    params = {
+        "tickers": ",".join(normalized_tickers),
+        "days": _normalize_adanos_days(days),
+    }
+    headers = {
+        "Accept": "application/json",
+        "User-Agent": "Dashboard123/1.0 (market-dashboard)",
+        "X-API-Key": api_key,
+    }
+
+    rows: list[dict] = []
+    for platform in normalized_platforms:
+        endpoint = f"{_ADANOS_BASE_URL}{_ADANOS_ENDPOINTS[platform]}/compare"
+        try:
+            response = requests.get(endpoint, params=params, headers=headers, timeout=15)
+            if response.status_code != 200:
+                continue
+            rows.extend(_adanos_rows_from_payload(response.json(), platform))
+        except Exception:
+            continue
+
+    if not rows:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(rows)
+    if "Buzz Score" in df.columns:
+        df = df.sort_values(
+            ["Buzz Score", "Ticker", "Platform"],
+            ascending=[False, True, True],
+            na_position="last",
+        )
+    return df.reset_index(drop=True)
 
 # ---------------------------------------------------------------------------
 # Fear & Greed (CNN via fear-greed package)

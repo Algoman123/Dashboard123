@@ -29,3 +29,9 @@ def get_fmp_key() -> str | None:
     """Return FMP API key or None if not set."""
     key = os.getenv("FMP_API_KEY", "")
     return key if key else None
+
+
+def get_adanos_key() -> str | None:
+    """Return Adanos Market Sentiment API key or None if not set."""
+    key = os.getenv("ADANOS_API_KEY", "")
+    return key if key else None
